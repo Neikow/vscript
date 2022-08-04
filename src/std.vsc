@@ -1,0 +1,16 @@
+declare std;
+
+declare builtin std::io {
+  file      &file;
+  console   &console;
+  keyboard  &keyboard;
+}
+
+declare builtin std::maths {
+  complex   &complex;
+  quat      &quat;
+  matrix    &matrix;
+  vec       &vec;
+  max       &max;
+  min       &min;
+}

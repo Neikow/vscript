@@ -1,0 +1,19 @@
+{
+  "name": "v.script",
+  "main": "./src/main.ts",
+  "scripts": {
+    "start": "ts-node ./src/index.ts src/main.vsc",
+    "compile": "cd asm && arch runp nasm -felf \"./asm.asm\" && arch runp ld -m elf_i386 \"./asm.o\" -o \"./asm\" && arch runp rm \"./asm.o\" && cd ..",
+    "build": "ts-node ./src/index.ts --build src/main.vsc && npm run compile",
+    "build:run": "ts-node ./src/index.ts --build src/main.vsc && npm run compile && npm run run",
+    "run": "arch runp \"./asm/asm\" \"$@[2,-1]\""
+  },
+  "devDependencies": {
+    "@types/node": "^17.0.35",
+    "@types/readline-sync": "^1.4.4"
+  },
+  "dependencies": {
+    "readline-sync": "^1.4.10",
+    "chalk": "^4.1.0"
+  }
+}

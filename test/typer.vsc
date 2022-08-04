@@ -1,0 +1,18 @@
+let count = 10;
+let string = '';
+
+while count > 0 do {
+  debug 'Attempts left: ' + str(count);
+  const input = console_input('>>> ');
+
+  if input == 'exit' do {
+    debug 'Exiting the program...';
+    exit 0;
+  } else if input.length > 1 do {
+    debug 'Only letters allowed. Type "exit" to exit.';
+  } else {
+    string += input;
+    debug string;
+    count--;
+  }
+}

@@ -1,0 +1,211 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "vscript",
+	"patterns": [
+		{
+			"include": "#comments"
+		},
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#strings"
+		},
+		{
+			"include": "#numbers"
+		},
+		{
+			"include": "#variables"
+		}
+	],
+	"repository": {
+		"keywords": {
+			"patterns": [
+				{
+					"name": "storage.type.function.vsc",
+					"match": "\\b(fn)\\b"
+				},
+				{
+					"name": "storage.type.variable.vsc",
+					"match": "\\b(let)\\b"
+				},
+				{
+					"name": "storage.type.variable.constant.vsc",
+					"match": "\\b(const)\\b"
+				},
+				{
+					"name": "storage.type.struct.vsc",
+					"match": "\\b(struct)\\b"
+				},
+				{
+					"name": "entity.name.type.vsc",
+					"match": "\\b(bool|flt|int|fun|str|chr)\\b"
+				},
+				{
+					"name": "support.type.primitive.vsc",
+					"match": "\\b(void|ptr)\\b"
+				},
+				{
+					"name": "entity.name.type.any.vsc",
+					"match": "\\b(any)\\b"
+				},
+				{
+					"name": "storage.modifier.declare.vsc",
+					"match": "\\b(declare)\\b"
+				},
+				{
+					"name": "entity.name.std.vsc",
+					"match": "\\b(std)\\b"
+				},
+				{
+					"name": "entity.name.io.vsc",
+					"match": "\\b(io)\\b"
+				},
+				{
+					"name": "constant.language.boolean.vsc",
+					"match": "\\b(true|false)\\b"
+				},
+				{
+					"name": "constant.language.null.vsc",
+					"match": "\\b(null)\\b"
+				},
+				{
+					"name": "constant.language.null.vsc",
+					"match": "\\b(undefined)\\b"
+				},
+				{
+					"name": "punctuation.terminator.vsc",
+					"match": "(;)"
+				},
+				{
+					"name": "keyword.operator.type.annotation.vsc",
+					"match": "(:)"
+				},
+				{
+					"name": "keyword.operator.type.annotation.optional.vsc",
+					"match": "(\\?:)"
+				},
+				{
+					"name": "keyword.control.use.vsc",
+					"match": "\\b(use|from)\\b"
+				},
+				{
+					"name": "keyword.control.vsc",
+					"match": "\\b(raise|assert)\\b"
+				},
+				{
+					"name": "keyword.control.flow.vsc",
+					"match": "\\b(if|else|while|do|as|for|exit|return|goto|label)\\b"
+				},
+				{
+					"name": "keyword.operator.vsc",
+					"match": "\\b(typeof|cast)\\b"
+				},
+				{
+					"name": "keyword.operator.assign.vsc",
+					"match": "(=|\\+=|-=|\\*=|\\*\\*=|\\/=|%=|~\\/=|\\+\\+|--)"
+				},
+				{
+					"name": "keyword.operator.arithmetic.vsc",
+					"match": "(\\+|-|\\/|~\\/|\\*|%|\\*\\*)"
+				},
+				{
+					"name": "keyword.operator.bool.vsc",
+					"match": "(!\\||&&|\\|\\||!)"
+				},
+				{
+					"name": "keyword.operator.bool.vsc",
+					"match": "(<=|>=|==|!=|>|<)"
+				},
+				{
+					"name": "keyword.operator.in.vsc",
+					"match": "\\b(in)\\b"
+				},
+				{
+					"name": "keyword.operator.access.vsc",
+					"match": "(\\.|::)"
+				},
+				{
+					"name": "keyword.operator.type.vsc",
+					"match": "(\\|)"
+				},
+				{
+					"name": "keyword.vsc",
+					"match": "\\b(debug|here)\\b"
+				},
+				{
+					"name": "keyword.other.qualifier.vsc",
+					"match": "\\b(builtin)\\b"
+				}
+			]
+		},
+		"variables": {
+			"patterns": [
+				{
+					"name": "entity.name.builtin",
+					"match": "(&[a-zA-Z0-9_]+)"
+				}
+			]
+		},
+		"comments": {
+			"patterns": [
+				{
+					"contentName": "comment.line.double-slash.vsc",
+					"begin": "(^[ \t]+)?(\\/\\/)",
+					"beginCaptures": {
+						"1": {
+							"name": "punctuation.whitespace.comment.leading.vsc"
+						},
+						"2": {
+							"name": "comment.line.double-slash.vsc"
+						}
+					},
+					"end": "(?=^)"
+				}
+			]
+		},
+		"strings": {
+			"patterns": [
+				{
+					"name": "string.quoted.double.vsc",
+					"begin": "\"",
+					"end": "\"",
+					"patterns": [
+						{
+							"name": "constant.character.escape.vsc",
+							"match": "\\\\."
+						}
+					]
+				},
+				{
+					"name": "string.quoted.single.vsc",
+					"begin": "'",
+					"end": "'",
+					"patterns": [
+						{
+							"name": "constant.character.escape.vsc",
+							"match": "\\\\."
+						}
+					]
+				}
+			]
+		},
+		"numbers": {
+			"patterns": [
+				{
+					"name": "constant.numeric.NaN.vsc",
+					"match": "\\b(NaN)\\b"
+				},
+				{
+					"name": "constant.numeric.infty.vsc",
+					"match": "\\b(infty)\\b"
+				},
+				{
+					"name": "constant.numeric.integer.vsc",
+					"match": "(?<!\\$)(?:(?:\\b[0-9][0-9_]*(n)?\\b(?!\\.)))(?!\\$)"
+				}
+			]
+		}
+	},
+	"scopeName": "source.vsc"
+}
