@@ -5,6 +5,8 @@ An [object-oriented](https://en.wikipedia.org/wiki/Object-based_language) progra
 > Currently, the compilation only targets Linux and x86.
 > Support for x64 and other OS is scheduled sometimes.
 
+The format is similar to TypeScript in many aspects.
+
 ## Syntax
 Here a brief list of the language capabilities.
 #### Variables and constants
@@ -39,7 +41,8 @@ fn my_function(arg1: str, arg2?: bool): int {
 ```
 
 #### Loops
-##### `while` 
+##### `while`
+The default loop in every language.
 ```ts
 while condition do {
   // ...
@@ -48,6 +51,7 @@ while condition do {
 
 #### Control Flow
 ##### `if ... else if ... else`
+You already know how it works.
 ```ts
 if condition1 do {
   // ...
@@ -60,6 +64,7 @@ if condition1 do {
 ```
 
 ##### [WIP] `switch`
+Not yet implemented.
 ```ts
 switch val {
   1: { /** */ }
@@ -69,6 +74,7 @@ switch val {
 ```
 
 ##### [WIP] `goto`
+Not yet implemented.
 ```ts
 label my_label;
 //...
