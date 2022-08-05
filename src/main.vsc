@@ -1,5 +1,13 @@
-let x = 10000;
+let x = 12;
 
-while x != 0 do {
-  debug x--;
+while x > 7 do {
+  debug x;
+  if x == 10 do {
+    debug 'x is 10';
+  } else if x > 10 do {
+    debug 'x is greater than 10';
+  } else {
+    debug 'x is smaller than 10';
+  }
+  x -= 2;
 }

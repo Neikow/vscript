@@ -110,7 +110,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
   }
 
   function jne(v: string, comment?: string) {
-    return `\tje\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
+    return `\tjne\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
   }
 
   const base =
@@ -161,6 +161,28 @@ export const compile = (tree: SyntaxTree, path: string) => {
                   right[0].before +
                   mov('eax', right[0].middle) +
                   add('eax', 'ebx'),
+                middle: 'eax',
+                after: '',
+                on_update: '',
+              },
+            ];
+          }
+          case 'sub': {
+            if (!node.left || !node.right) throw Errors.ParserError();
+            const left = parseExpression(node.left, context_id);
+            if (left.length > 1) throw Errors.NotImplemented();
+            const right = parseExpression(node.right, context_id);
+            if (right.length > 1) throw Errors.NotImplemented();
+
+            return [
+              {
+                before:
+                  '\t; op sub\n' +
+                  left[0].before +
+                  mov('ebx', right[0].middle) +
+                  right[0].before +
+                  mov('eax', left[0].middle) +
+                  sub('eax', 'ebx'),
                 middle: 'eax',
                 after: '',
                 on_update: '',
@@ -219,11 +241,35 @@ export const compile = (tree: SyntaxTree, path: string) => {
                   right[0].after,
                 middle: 'eax',
                 after: '',
-                on_update: '',
+                on_update: left[0].on_update,
               },
             ];
           }
+          case 'sub_assign': {
+            if (!node.left || !node.right) throw Errors.CompilerError();
 
+            const left = parseExpression(node.left, context_id);
+            if (left.length > 1) throw Errors.NotImplemented();
+            const right = parseExpression(node.right, context_id);
+            if (right.length > 1) throw Errors.NotImplemented();
+
+            return [
+              {
+                before:
+                  '\t; op sub_assign\n' +
+                  left[0].before +
+                  right[0].before +
+                  mov('eax', left[0].middle) +
+                  mov('ebx', right[0].middle) +
+                  sub('eax', 'ebx') +
+                  left[0].after +
+                  right[0].after,
+                middle: 'eax',
+                after: '',
+                on_update: left[0].on_update,
+              },
+            ];
+          }
           case 'access_call': {
             if (!node.left || !node.right) throw Errors.CompilerError();
             if (node.left.NT !== NT.reference) throw Errors.NotImplemented();
@@ -722,12 +768,12 @@ export const compile = (tree: SyntaxTree, path: string) => {
 
         if (val.length > 1) throw Errors.NotImplemented('tuples');
 
-        return val[0].before + val[0].after;
+        return val[0].before + val[0].after + val[0].on_update;
       }
       case NT.statement_while: {
         let loop_idx = statements_counter[node.NT];
         if (loop_idx === undefined) statements_counter[node.NT] = loop_idx = 0;
-        else statements_counter[node.NT]++;
+        else statements_counter[node.NT] = loop_idx++;
 
         const label_success = `while${loop_idx}`;
         const label_fail = `end_while${loop_idx}`;
@@ -744,7 +790,8 @@ export const compile = (tree: SyntaxTree, path: string) => {
         );
 
         code +=
-          `\n${label_success}:\n` +
+          `\n; while statement\n` +
+          `${label_success}:\n` +
           `\t; condition\n` +
           condition.before +
           condition.middle +
@@ -752,6 +799,57 @@ export const compile = (tree: SyntaxTree, path: string) => {
           body +
           jmp(label_success) +
           `\n${label_fail}:\n`;
+
+        return code;
+      }
+      case NT.statement_if_else: {
+        let statement_idx = statements_counter[node.NT];
+        if (statement_idx === undefined)
+          statements_counter[node.NT] = statement_idx = 0;
+        else statements_counter[node.NT] = statement_idx++;
+
+        code += `\n; is_else statement\n`;
+        for (let i = 0; i < node.children.length; i++) {
+          const branch = node.children[i];
+
+          const label_success = `if_else_${statement_idx}_${i}`;
+          const label_fail =
+            i + 1 < node.children.length
+              ? `if_else_${statement_idx}_${i + 1}`
+              : node.default
+              ? `if_else_${statement_idx}_def`
+              : `if_else_${statement_idx}_end`;
+
+          if (!branch.condition) throw Errors.CompilerError();
+          if (!branch.child) throw Errors.CompilerError();
+
+          const condition = parseCondition(
+            branch.condition,
+            label_success,
+            label_fail,
+            branch.child.id
+          );
+
+          code +=
+            `${label_success}:\n` +
+            `\t; condition\n` +
+            condition.before +
+            condition.middle +
+            '\t; body\n' +
+            aux(branch.child, branch.child.id) +
+            jmp(`if_else_${statement_idx}_end`);
+        }
+
+        if (node.default) {
+          if (!node.default.child) throw Errors.CompilerError();
+          code +=
+            `\nif_else_${statement_idx}_def:\n` +
+            '\t; body\n' +
+            aux(node.default.child, node.default.child.id);
+        }
+
+        code += `if_else_${statement_idx}_end:\n`;
+        code += '\n';
 
         return code;
       }
