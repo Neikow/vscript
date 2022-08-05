@@ -164,15 +164,10 @@ export const type_check = (tree: SyntaxTree) => {
   }
 
   function compileTypes(node: ContextNode) {
-    let idx = 0;
     node.definitions.forEach((def) => {
       if (def.child_type.NT === NT.raw_type) {
         def.node.type = compileType(def.child_type);
         def.child_type = def.node.type;
-      }
-
-      if (def.node.DT === DT.const || def.node.DT === DT.var) {
-        def.node.index = idx++;
       }
     });
   }
@@ -336,6 +331,10 @@ export const type_check = (tree: SyntaxTree) => {
           case DT.function: {
             if (!node.value.context)
               throw Errors.ParserError('missing context on function');
+
+            for (const arg of node.value.arguments) {
+              arg.type = compileType(arg.type);
+            }
 
             if (node.value.return_type.NT === NT.raw_type) {
               node.value.return_type = compileType(node.value.return_type);

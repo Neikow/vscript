@@ -356,7 +356,8 @@ export interface DefinitionNodeVar extends NodeBase {
   DT: DefinitionType.var;
   definition_id: number | undefined;
   type_check_id: number | undefined;
-  index: number | undefined;
+  local_offset: number | undefined;
+  global_offset: number | undefined;
   context: ContextNode;
   name: string;
   mutated: boolean;
@@ -370,7 +371,8 @@ export interface DefinitionNodeConst extends NodeBase {
   DT: DefinitionType.const;
   definition_id: number | undefined;
   type_check_id: number | undefined;
-  index: number | undefined;
+  local_offset: number | undefined;
+  global_offset: number | undefined;
   context: ContextNode;
   name: string;
   mutated: false;

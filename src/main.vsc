@@ -1,7 +1,12 @@
-fn add(x: int, y: int): int {
-  let sum = x + y;
+let ten = 10;
+let three = 3;
+let hundred = 100;
+let thousand = 1000;
+
+fn timesThreeAddTen(x: int): int {
+  let sum = x + ten;
 
   return sum;
 }
 
-debug add(1, 2);
+debug timesThreeAddTen(thousand);

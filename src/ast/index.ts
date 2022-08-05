@@ -1,55 +1,15 @@
-import chalk from 'chalk';
-import { Errors } from '../errors';
 import { lex } from '../lexer';
-import { Memory } from '../memory';
-import { LanguageObject, LanguageObjectKind } from '../objects';
 import { parse } from '../parser/index';
 import {
   ContextNode,
-  ContextType,
-  DefinitionType as DT,
-  StringLiteralValueNode,
-  Node,
-  NodeType as NT,
-  OperatorNode,
-  RawTypeNode,
-  SingleTypeNode,
-  StatementLabelNode,
-  TypeNode,
-  UnionTypeNode,
-  ValueNode,
-  BooleanLiteralNode,
-  StringLiteralNode,
-  NumberLiteralNode,
-  DefinitionNodeVar,
-  DefinitionNodeConst,
-  ExpressionListNode,
-  ExpressionNode,
-  DefinitionNodeFunction,
+  ContextType, NodeType as NT
 } from '../syntax_tree_nodes';
-import {
-  BranchParameters,
-  INFINITY,
-  Location,
-  NAN,
-  NULL,
-  TypeCheckResult,
-  TYPE_ANY,
-  TYPE_NEVER,
-  TYPE_UNDEFINED,
-  TYPE_UNKNOWN,
-  TYPE_VOID,
-} from '../types';
 
-import { LanguageDefinition } from '../definitions';
-import { Types } from '../std/types';
-import TypeHelper from '../type_helper';
-import { writeFileSync } from 'fs';
 
-import { collapse } from './collapse';
-import { type_check } from './type_check';
-import { execute } from './execute';
 import { compile } from './compile';
+import { collapse } from './collapse';
+import { execute } from './execute';
+import { type_check } from './type_check';
 
 export class SyntaxTree {
   root: ContextNode;

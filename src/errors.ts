@@ -132,4 +132,14 @@ export class Errors {
     err.name += this.whitespace();
     return err;
   }
+
+  static CompilerError(msg?: string) {
+    const err = new Error();
+    err.name = this.whitespace();
+    err.name += error(`Compiler Error\n`);
+    if (msg) err.name += msg + '.\n';
+    else err.name += '.';
+    err.name += this.whitespace();
+    return err;
+  }
 }
