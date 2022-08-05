@@ -19,6 +19,7 @@ interface ParseResult {
   before: string;
   middle: string;
   after: string;
+  on_update: string;
 }
 
 export const compile = (tree: SyntaxTree, path: string) => {
@@ -27,6 +28,10 @@ export const compile = (tree: SyntaxTree, path: string) => {
 
   let local_stack_offset = 0;
   let global_stack_offset = 0;
+
+  function jmp(v: string, comment?: string) {
+    return `\tjmp\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
+  }
 
   function call(v: string, comment?: string) {
     return `\tcall\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
@@ -37,19 +42,13 @@ export const compile = (tree: SyntaxTree, path: string) => {
     global_stack_offset--;
     if (local_stack_offset < 0)
       throw Errors.CompilerError('Popped one too many times.');
-    return (
-      `\t; gso: ${global_stack_offset} : lso: ${local_stack_offset}\n\tpop\t\t${v}` +
-      (comment ? `\t; ${comment}\n` : '\n')
-    );
+    return `\tpop\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
   }
 
   function push(v: string, comment?: string) {
     local_stack_offset++;
     global_stack_offset++;
-    return (
-      `\t; gso: ${global_stack_offset} : lso: ${local_stack_offset}\n\tpush\t${v}` +
-      (comment ? `\t; ${comment}\n` : '\n')
-    );
+    return `\tpush\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
   }
 
   function mov(v1: string, v2: string, comment?: string) {
@@ -66,6 +65,54 @@ export const compile = (tree: SyntaxTree, path: string) => {
     return `\tsub\t\t${v1}, ${v2}` + (comment ? `\t; ${comment}\n` : '\n');
   }
 
+  function xor(v1: string, v2: string, comment?: string) {
+    return `\txor\t\t${v1}, ${v2}` + (comment ? `\t; ${comment}\n` : '\n');
+  }
+
+  function and(v1: string, v2: string, comment?: string) {
+    return `\tand\t\t${v1}, ${v2}` + (comment ? `\t; ${comment}\n` : '\n');
+  }
+
+  function or(v1: string, v2: string, comment?: string) {
+    return `\tor\t\t${v1}, ${v2}` + (comment ? `\t; ${comment}\n` : '\n');
+  }
+
+  function cmp(v1: string, v2: string, comment?: string) {
+    return `\tcmp\t\t${v1}, ${v2}` + (comment ? `\t; ${comment}\n` : '\n');
+  }
+
+  function dec(v: string, comment?: string) {
+    return `\tdec\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
+  }
+
+  function inc(v: string, comment?: string) {
+    return `\tinc\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
+  }
+
+  function jge(v: string, comment?: string) {
+    return `\tjge\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
+  }
+
+  function jle(v: string, comment?: string) {
+    return `\tjle\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
+  }
+
+  function jg(v: string, comment?: string) {
+    return `\tjge\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
+  }
+
+  function jl(v: string, comment?: string) {
+    return `\tjle\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
+  }
+
+  function je(v: string, comment?: string) {
+    return `\tje\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
+  }
+
+  function jne(v: string, comment?: string) {
+    return `\tje\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
+  }
+
   const base =
     '; --------------------------\n' +
     ';     Generated assembly    \n' +
@@ -77,10 +124,10 @@ export const compile = (tree: SyntaxTree, path: string) => {
     '\nsection .text\n' +
     'global  _start\n' +
     '\n_start:\n' +
-    '\txor\t\teax, eax\n' +
-    '\txor\t\tebx, ebx\n' +
-    '\txor\t\tecx, ecx\n' +
-    '\txor\t\tedx, edx\n' +
+    xor('eax', 'eax') +
+    xor('ebx', 'ebx') +
+    xor('ecx', 'ecx') +
+    xor('edx', 'edx') +
     mov('ebp', 'esp', 'save program base pointer') +
     push('ebp') +
     '\n';
@@ -116,6 +163,41 @@ export const compile = (tree: SyntaxTree, path: string) => {
                   add('eax', 'ebx'),
                 middle: 'eax',
                 after: '',
+                on_update: '',
+              },
+            ];
+          }
+          case 'decr': {
+            if (!node.left) throw Errors.CompilerError();
+            if (node.left.NT !== NT.reference)
+              throw Errors.NotImplemented('non reference decr');
+
+            const val = parseExpression(node.left, context_id);
+            if (val.length > 1) throw Errors.ParserError();
+
+            return [
+              {
+                before: val[0].before,
+                middle: val[0].middle,
+                after: dec(val[0].middle) + val[0].on_update,
+                on_update: '',
+              },
+            ];
+          }
+          case 'incr': {
+            if (!node.left) throw Errors.CompilerError();
+            if (node.left.NT !== NT.reference)
+              throw Errors.NotImplemented('non reference decr');
+
+            const val = parseExpression(node.left, context_id);
+            if (val.length > 1) throw Errors.ParserError();
+
+            return [
+              {
+                before: val[0].before,
+                middle: val[0].middle,
+                after: inc(val[0].middle) + val[0].on_update,
+                on_update: '',
               },
             ];
           }
@@ -137,6 +219,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                   right[0].after,
                 middle: 'eax',
                 after: '',
+                on_update: '',
               },
             ];
           }
@@ -176,6 +259,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 before: before,
                 middle: 'eax',
                 after: '',
+                on_update: '',
               },
             ];
           }
@@ -202,6 +286,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                   node.definition.value.context!.id
                 }`,
                 after: '',
+                on_update: '',
               },
             ];
           }
@@ -213,6 +298,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                   `\t; ${node.definition.name} arg\n` + mov('eax', address),
                 middle: 'eax',
                 after: mov(address, 'eax'),
+                on_update: '',
               },
             ];
           }
@@ -229,23 +315,15 @@ export const compile = (tree: SyntaxTree, path: string) => {
             //     `ncid : ${node.definition.context.id}    ; cid : ${context_id}\n`
             // );
 
-            let address = '';
-            if (node.definition.context.id === context_id) {
-              address = `[ebp - ${node.definition.local_offset + 1} * 4]`;
-            } else {
-              address = `[ebp + ${
-                global_stack_offset -
-                node.definition.global_offset +
-                node.definition.local_offset +
-                2 -
-                local_stack_offset
-              } * 4]`;
-            }
+            const address = `[ebp - ${node.definition.global_offset + 1} * 4]`;
+
             return [
               {
-                before: `\t; ${node.definition.name}\n` + mov('eax', address),
+                before:
+                  `\t; ${node.definition.name} var\n` + mov('eax', address),
                 middle: 'eax',
-                after: mov(address, 'eax'),
+                after: '',
+                on_update: mov(address, 'eax'),
               },
             ];
           }
@@ -273,6 +351,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
             before: '',
             middle: node.value,
             after: '',
+            on_update: '',
           },
         ];
       }
@@ -284,6 +363,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
             before: '',
             middle: val,
             after: '',
+            on_update: '',
           },
         ];
       }
@@ -293,16 +373,196 @@ export const compile = (tree: SyntaxTree, path: string) => {
     }
   }
 
+  let statements_counter: { [key: string]: number } = {};
+
   function parseCondition(
     node: ExpressionListNode | ExpressionNode,
     label_success: string,
-    label_fail: string
+    label_fail: string,
+    context_id: number
   ): ParseResult {
     if (node.NT === NT.expression_list)
       throw Errors.NotImplemented(NT.expression_list);
 
     function aux(node: Node, depth: number): ParseResult {
       switch (node.NT) {
+        case NT.expression: {
+          if (!node.member) throw Errors.ParserError('Missing expression');
+          return aux(node.member, depth + 1);
+        }
+        case NT.literal_number: {
+          if (node.value_type !== Types.integer.object)
+            throw Errors.NotImplemented();
+          if (node.value === NAN || node.value === INFINITY)
+            throw Errors.NotImplemented();
+          return {
+            before: '',
+            middle: node.value,
+            after: '',
+            on_update: '',
+          };
+        }
+        case NT.reference: {
+          const res = parseExpression(node, context_id);
+          if (res.length > 1) throw Errors.CompilerError();
+
+          return {
+            before: res[0].before,
+            middle: res[0].middle,
+            after: '',
+            on_update: res[0].after,
+          };
+        }
+        case NT.operator: {
+          if (depth > 1) throw Errors.NotImplemented(depth.toString());
+          switch (node.op) {
+            case 'lt': {
+              if (!node.left || !node.right) throw Errors.ParserError();
+
+              const left = aux(node.left, depth + 1);
+              const right = aux(node.right, depth + 1);
+
+              return {
+                before:
+                  left.before +
+                  right.before +
+                  mov('eax', left.middle) +
+                  mov('ebx', right.middle) +
+                  left.after +
+                  left.on_update +
+                  right.after +
+                  right.on_update +
+                  cmp('eax', 'ebx') +
+                  jge(label_fail),
+                middle: '',
+                after: '',
+                on_update: '',
+              };
+            }
+            case 'gt': {
+              if (!node.left || !node.right) throw Errors.ParserError();
+
+              const left = aux(node.left, depth + 1);
+              const right = aux(node.right, depth + 1);
+
+              return {
+                before:
+                  left.before +
+                  right.before +
+                  mov('eax', left.middle) +
+                  mov('ebx', right.middle) +
+                  left.after +
+                  left.on_update +
+                  right.after +
+                  right.on_update +
+                  cmp('eax', 'ebx') +
+                  jle(label_fail),
+                middle: '',
+                after: '',
+                on_update: '',
+              };
+            }
+
+            case 'leq': {
+              if (!node.left || !node.right) throw Errors.ParserError();
+
+              const left = aux(node.left, depth + 1);
+              const right = aux(node.right, depth + 1);
+
+              return {
+                before:
+                  left.before +
+                  right.before +
+                  mov('eax', left.middle) +
+                  mov('ebx', right.middle) +
+                  left.after +
+                  left.on_update +
+                  right.after +
+                  right.on_update +
+                  cmp('eax', 'ebx') +
+                  jg(label_fail),
+                middle: '',
+                after: '',
+                on_update: '',
+              };
+            }
+
+            case 'geq': {
+              if (!node.left || !node.right) throw Errors.ParserError();
+
+              const left = aux(node.left, depth + 1);
+              const right = aux(node.right, depth + 1);
+
+              return {
+                before:
+                  left.before +
+                  right.before +
+                  mov('eax', left.middle) +
+                  mov('ebx', right.middle) +
+                  left.after +
+                  left.on_update +
+                  right.after +
+                  right.on_update +
+                  cmp('eax', 'ebx') +
+                  jl(label_fail),
+                middle: '',
+                after: '',
+                on_update: '',
+              };
+            }
+
+            case 'eq': {
+              if (!node.left || !node.right) throw Errors.ParserError();
+
+              const left = aux(node.left, depth + 1);
+              const right = aux(node.right, depth + 1);
+
+              return {
+                before:
+                  left.before +
+                  right.before +
+                  mov('eax', left.middle) +
+                  mov('ebx', right.middle) +
+                  left.after +
+                  left.on_update +
+                  right.after +
+                  right.on_update +
+                  cmp('eax', 'ebx') +
+                  jne(label_fail),
+                middle: '',
+                after: '',
+                on_update: '',
+              };
+            }
+
+            case 'neq': {
+              if (!node.left || !node.right) throw Errors.ParserError();
+
+              const left = aux(node.left, depth + 1);
+              const right = aux(node.right, depth + 1);
+
+              return {
+                before:
+                  left.before +
+                  right.before +
+                  mov('eax', left.middle) +
+                  mov('ebx', right.middle) +
+                  left.after +
+                  left.on_update +
+                  right.after +
+                  right.on_update +
+                  cmp('eax', 'ebx') +
+                  je(label_fail),
+                middle: '',
+                after: '',
+                on_update: '',
+              };
+            }
+            default: {
+              throw Errors.NotImplemented(node.op);
+            }
+          }
+        }
         default: {
           throw Errors.NotImplemented(node.NT);
         }
@@ -463,6 +723,37 @@ export const compile = (tree: SyntaxTree, path: string) => {
         if (val.length > 1) throw Errors.NotImplemented('tuples');
 
         return val[0].before + val[0].after;
+      }
+      case NT.statement_while: {
+        let loop_idx = statements_counter[node.NT];
+        if (loop_idx === undefined) statements_counter[node.NT] = loop_idx = 0;
+        else statements_counter[node.NT]++;
+
+        const label_success = `while${loop_idx}`;
+        const label_fail = `end_while${loop_idx}`;
+
+        if (!node.child) throw Errors.CompilerError();
+        if (!node.condition) throw Errors.CompilerError();
+        const body = aux(node.child, node.child.id);
+
+        const condition = parseCondition(
+          node.condition,
+          label_success,
+          label_fail,
+          node.child.id
+        );
+
+        code +=
+          `\n${label_success}:\n` +
+          `\t; condition\n` +
+          condition.before +
+          condition.middle +
+          '\t; body\n' +
+          body +
+          jmp(label_success) +
+          `\n${label_fail}:\n`;
+
+        return code;
       }
       default:
         throw Errors.NotImplemented(node.NT);

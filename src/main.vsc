@@ -1,12 +1,5 @@
-let ten = 10;
-let three = 3;
-let hundred = 100;
-let thousand = 1000;
+let x = 10000;
 
-fn timesThreeAddTen(x: int): int {
-  let sum = x + ten;
-
-  return sum;
+while x != 0 do {
+  debug x--;
 }
-
-debug timesThreeAddTen(thousand);
