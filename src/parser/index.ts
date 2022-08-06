@@ -928,7 +928,6 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
         location: curr_tok!.loc,
         value: 'console_input',
       };
-
       next();
       const access_node = access(res);
       if (access_node) return access_node;

@@ -17,78 +17,53 @@ _start:
 	push	ebp
 
 	push	12
-
-; while statement
-while0:
-	; condition
-	; x var
-	mov		eax, [ebp - 2 * 4]
-	; mov		eax, eax
-	mov		ebx, 7
-	cmp		eax, ebx
-	jle		end_while0
-	; body
+	push	10
 	; statement_debug (int)
 	; x var
 	mov		eax, [ebp - 2 * 4]
 	; mov		eax, eax
 	call	iprintLF
 
+	; statement_debug (int)
+	; y var
+	mov		eax, [ebp - 3 * 4]
+	; mov		eax, eax
+	call	iprintLF
 
-; is_else statement
-if_else_0_0:
-	; condition
+	; statement_debug (int)
 	; x var
 	mov		eax, [ebp - 2 * 4]
+	push	eax	; arg 0
+	; op call
+	call	fn_incr1
+	add		esp, 1 * 4	; removes arguments from stack
 	; mov		eax, eax
-	mov		ebx, 10
-	cmp		eax, ebx
-	jne		if_else_0_1
-	; body
-	; statement_debug (str)
-	mov		eax, str0
-	call	sprintLF
+	call	iprintLF
 
-	jmp		if_else_0_end
-if_else_0_1:
-	; condition
-	; x var
-	mov		eax, [ebp - 2 * 4]
-	; mov		eax, eax
-	mov		ebx, 10
-	cmp		eax, ebx
-	jle		if_else_0_def
-	; body
-	; statement_debug (str)
-	mov		eax, str1
-	call	sprintLF
-
-	jmp		if_else_0_end
-
-if_else_0_def:
-	; body
-	; statement_debug (str)
-	mov		eax, str2
-	call	sprintLF
-
-if_else_0_end:
-
-	; op sub_assign
-	; x var
-	mov		eax, [ebp - 2 * 4]
-	; mov		eax, eax
-	mov		ebx, 2
-	sub		eax, ebx
-	mov		[ebp - 2 * 4], eax
-	jmp		while0
-
-end_while0:
 	mov		ebx, 0	; exit code
 	call	_exit
 
+; incr(z: int): int
+fn_incr1:
+	push	ebp
+	mov		ebp, esp	; saves the function base pointer
+
+	; statement_debug (int)
+	; z arg
+	mov		eax, [ebp + 2 * 4]
+	; mov		eax, eax
+	call	iprintLF
+	mov		[ebp + 2 * 4], eax
+
+	; op add
+	; z arg
+	mov		eax, [ebp + 2 * 4]
+	mov		ebx, eax
+	mov		eax, 1
+	add		eax, ebx
+	pop		ebp
+	ret
+
 section .data
-str0: db 'x is 10', 0h
-str1: db 'x is greater than 10', 0h
-str2: db 'x is smaller than 10', 0h
 
 section .bss

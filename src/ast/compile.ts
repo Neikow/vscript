@@ -29,6 +29,10 @@ export const compile = (tree: SyntaxTree, path: string) => {
   let local_stack_offset = 0;
   let global_stack_offset = 0;
 
+  function ret(comment?: string) {
+    return `\tret` + (comment ? `\t; ${comment}\n` : '\n');
+  }
+
   function jmp(v: string, comment?: string) {
     return `\tjmp\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
   }
@@ -280,7 +284,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
             if (left.length > 1) throw Errors.CompilerError();
             const right = parseExpression(node.right, context_id);
 
-            let before = push('ebp');
+            let before = '';
             before += left[0].before;
             for (let i = right.length - 1; i > -1; i--) {
               before +=
@@ -291,14 +295,8 @@ export const compile = (tree: SyntaxTree, path: string) => {
             const arg_count = node.left.definition.value.arguments.length;
             before +=
               '\t; op call\n' +
-              push(`${right.length}`, 'arguments count') +
               call(left[0].middle) +
-              add(
-                'esp',
-                `${arg_count + 1} * 4`,
-                'removes arguments from stack'
-              ) +
-              pop('ebp');
+              add('esp', `${arg_count} * 4`, 'removes arguments from stack');
 
             return [
               {
@@ -354,14 +352,19 @@ export const compile = (tree: SyntaxTree, path: string) => {
               node.definition.local_offset === undefined
             )
               throw Errors.CompilerError();
-            // console.debug(
-            //   `\nname : ${node.definition.name}\n` +
-            //     `ngo  : ${node.definition.global_offset} ; go  : ${global_stack_offset}\n` +
-            //     `nlo  : ${node.definition.local_offset}  ; lo  : ${local_stack_offset}\n` +
-            //     `ncid : ${node.definition.context.id}    ; cid : ${context_id}\n`
-            // );
+            console.debug(
+              `\nname : ${node.definition.name}\n` +
+                `ngo  : ${node.definition.global_offset} ; go  : ${global_stack_offset}\n` +
+                `nlo  : ${node.definition.local_offset}  ; lo  : ${local_stack_offset}\n` +
+                `ncid : ${node.definition.context.id}    ; cid : ${context_id}\n`
+            );
 
-            const address = `[ebp - ${node.definition.global_offset + 1} * 4]`;
+            let address: string;
+            if (node.definition.context.id === context_id) {
+              address = `[ebp - ${node.definition.global_offset + 1} * 4]`;
+            } else {
+              address = `[ebp + ${node.definition.global_offset + 1} * 4]`;
+            }
 
             return [
               {
@@ -645,9 +648,11 @@ export const compile = (tree: SyntaxTree, path: string) => {
     let func =
       `\n; ${node.name}(${format_args}): ${format_return}\n` +
       `fn_${node.name}${node.value.context!.id}:\n` +
+      push('ebp') +
       mov('ebp', 'esp', 'saves the function base pointer') +
       '\n' +
-      aux(node.value.context!, node.value.context!.id);
+      aux(node.value.context!, node.value.context!.id) +
+      (!node.value.has_return ? pop('ebx') + '\tret\n' : '');
 
     functions += func;
     global_stack_offset -= local_stack_offset + 1;
@@ -758,9 +763,9 @@ export const compile = (tree: SyntaxTree, path: string) => {
         }
         code += after;
 
-        code += mov('esp', 'ebp');
+        code += pop('ebp');
 
-        code += '\tret\n';
+        code += ret();
         return code;
       }
       case NT.expression: {

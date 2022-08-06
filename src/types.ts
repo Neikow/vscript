@@ -136,6 +136,7 @@ export const KEYWORDS = [
   'while',
   'do',
   'here',
+  '!!!',
   'builtin',
   'declare',
   'goto',
