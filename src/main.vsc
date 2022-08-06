@@ -1,13 +1,25 @@
-let x = 12;
+let z = 12;
+debug 'z', z;
 
-while x > 7 do {
-  debug x;
-  if x == 10 do {
-    debug 'x is 10';
-  } else if x > 10 do {
-    debug 'x is greater than 10';
-  } else {
-    debug 'x is smaller than 10';
+fn debug_x(x: int) {
+  debug 'z', z;
+  let y = 10;
+  debug 'y', y;
+  debug 'z', z;
+
+  fn debug_xy(x: int) {
+    debug 'z', z;
+    debug 'y', y; 
   }
-  x -= 2;
+
+  debug 'z', z;
+  debug 'y', y; 
+
+  debug_xy(x);
 }
+
+debug 'z', z;
+
+debug_x(z);
+
+debug 'z', z;

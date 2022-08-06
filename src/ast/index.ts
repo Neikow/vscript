@@ -22,7 +22,7 @@ export class SyntaxTree {
 
     const context = parse(tokens, {
       NT: NT.context,
-      id: -1,
+      id: 0,
       type: ContextType.program,
       label: 'program',
       holder: undefined,

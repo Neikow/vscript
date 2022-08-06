@@ -932,6 +932,16 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
       const access_node = access(res);
       if (access_node) return access_node;
       return res;
+    } else if (accept(TK.keyword, ['dump_mem'])) {
+      const res: AST.SpecialNode = {
+        NT: AST.NodeType.special,
+        location: curr_tok!.loc,
+        value: 'dump_mem',
+      };
+      next();
+      const access_node = access(res);
+      if (access_node) return access_node;
+      return res;
     } else if (accept(TK.keyword, ['bool', 'int', 'str', 'flt', 'ptr'])) {
       const type_map = {
         bool: Types.boolean,

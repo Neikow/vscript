@@ -4,6 +4,7 @@ import { Errors } from '../errors';
 import { LanguageObjectKind } from '../objects';
 import { Types } from '../std/types';
 import {
+  ContextType,
   DefinitionNodeFunction,
   DefinitionType as DT,
   ExpressionListNode,
@@ -12,7 +13,7 @@ import {
   NodeType as NT,
   TypeNode,
 } from '../syntax_tree_nodes';
-import { INFINITY, NAN, TYPE_VOID } from '../types';
+import { INFINITY, Location, NAN, TYPE_VOID } from '../types';
 import TypeHelper from '../type_helper';
 
 interface ParseResult {
@@ -26,10 +27,15 @@ export const compile = (tree: SyntaxTree, path: string) => {
   if (!tree.collapsed) tree.collapse();
   if (!tree.type_check()) throw Errors.CompilerError('Type-check failed');
 
-  let local_stack_offset = 0;
-  let global_stack_offset = 0;
+  // const stack_offsets: Map<number, number> = new Map();
+
+  const offsets_stack: number[] = [];
+  let local_stack_offset: number = 0;
+  let global_stack_offset: number = 0;
 
   function ret(comment?: string) {
+    local_stack_offset--;
+    global_stack_offset--;
     return `\tret` + (comment ? `\t; ${comment}\n` : '\n');
   }
 
@@ -38,14 +44,14 @@ export const compile = (tree: SyntaxTree, path: string) => {
   }
 
   function call(v: string, comment?: string) {
+    local_stack_offset++;
+    global_stack_offset++;
     return `\tcall\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
   }
 
   function pop(v: string, comment?: string) {
     local_stack_offset--;
     global_stack_offset--;
-    if (local_stack_offset < 0)
-      throw Errors.CompilerError('Popped one too many times.');
     return `\tpop\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
   }
 
@@ -57,7 +63,8 @@ export const compile = (tree: SyntaxTree, path: string) => {
 
   function mov(v1: string, v2: string, comment?: string) {
     const val = `mov\t\t${v1}, ${v2}` + (comment ? `\t; ${comment}\n` : '\n');
-    if (v1 == v2) return '\t; ' + val;
+    // if (v1 == v2) return '\t; ' + val;
+    if (v1 == v2) return '';
     return '\t' + val;
   }
 
@@ -314,8 +321,11 @@ export const compile = (tree: SyntaxTree, path: string) => {
       case NT.reference: {
         if (!node.definition.type || node.definition.type.NT === NT.raw_type)
           throw Errors.ParserError();
-        if (node.definition.type.NT === NT.type_union)
-          throw Errors.NotImplemented(NT.type_union);
+        if (
+          node.definition.type.NT === NT.type_union ||
+          node.definition.type.NT === NT.type_tuple
+        )
+          throw Errors.NotImplemented(node.definition.type.NT);
         if (typeof node.definition.type.type == 'string')
           throw Errors.NotImplemented('string type');
         if (node.definition.type.type.kind === LanguageObjectKind.instance)
@@ -338,20 +348,23 @@ export const compile = (tree: SyntaxTree, path: string) => {
             let address = `[ebp + ${node.definition.index + 2} * 4]`;
             return [
               {
-                before:
-                  `\t; ${node.definition.name} arg\n` + mov('eax', address),
+                before: mov('eax', address, `(${node.definition.name})`),
                 middle: 'eax',
-                after: mov(address, 'eax'),
-                on_update: '',
+                after: '',
+                on_update: mov(address, 'eax'),
               },
             ];
           }
           case DT.var: {
+            if (node.definition.type_check_id === undefined)
+              throw Errors.CompilerError();
+
             if (
               node.definition.global_offset === undefined ||
               node.definition.local_offset === undefined
             )
               throw Errors.CompilerError();
+
             console.debug(
               `\nname : ${node.definition.name}\n` +
                 `ngo  : ${node.definition.global_offset} ; go  : ${global_stack_offset}\n` +
@@ -361,15 +374,18 @@ export const compile = (tree: SyntaxTree, path: string) => {
 
             let address: string;
             if (node.definition.context.id === context_id) {
-              address = `[ebp - ${node.definition.global_offset + 1} * 4]`;
+              address = `[ebp - ${
+                global_stack_offset - node.definition.global_offset + 2
+              } * 4]`;
             } else {
-              address = `[ebp + ${node.definition.global_offset + 1} * 4]`;
+              address = `[ebp + ${
+                global_stack_offset - node.definition.global_offset
+              } * 4]`;
             }
 
             return [
               {
-                before:
-                  `\t; ${node.definition.name} var\n` + mov('eax', address),
+                before: mov('eax', address, `(${node.definition.name})`),
                 middle: 'eax',
                 after: '',
                 on_update: mov(address, 'eax'),
@@ -415,6 +431,36 @@ export const compile = (tree: SyntaxTree, path: string) => {
             on_update: '',
           },
         ];
+      }
+
+      case NT.special: {
+        switch (node.value) {
+          case 'dump_mem': {
+            const range = 6;
+
+            let val =
+              mov('eax', addLiteralString(`>>> begin dump`)) + call('sprintLF');
+
+            for (let i = -range; i < range + 1; i++) {
+              val +=
+                mov('eax', addLiteralString(`value at [ebp + ${i} * 4] : `)) +
+                call('sprint') +
+                mov('eax', `[ebp + ${i} * 4]`) +
+                call('iprintLF');
+            }
+
+            return [
+              {
+                before: val,
+                middle: addLiteralString(`>>> end dump`),
+                after: '',
+                on_update: '',
+              },
+            ];
+          }
+          default:
+            throw Errors.NotImplemented(node.value);
+        }
       }
       default: {
         throw Errors.NotImplemented(node.NT);
@@ -632,8 +678,9 @@ export const compile = (tree: SyntaxTree, path: string) => {
   }
 
   function addFunction(node: DefinitionNodeFunction): void {
-    const last_local_stack_offset = local_stack_offset;
+    offsets_stack.push(local_stack_offset);
     local_stack_offset = 0;
+
     const format_args = node.value.arguments
       .map(
         (arg) =>
@@ -652,11 +699,23 @@ export const compile = (tree: SyntaxTree, path: string) => {
       mov('ebp', 'esp', 'saves the function base pointer') +
       '\n' +
       aux(node.value.context!, node.value.context!.id) +
-      (!node.value.has_return ? pop('ebx') + '\tret\n' : '');
+      (!node.value.has_return
+        ? aux(
+            {
+              NT: NT.statement_return,
+              location: Location.computed,
+              member: undefined,
+              parent: node.value,
+            },
+            node.value.context!.id
+          )
+        : '');
+
+    global_stack_offset -= local_stack_offset;
+    if (offsets_stack.length < 1) throw Errors.CompilerError();
+    local_stack_offset = offsets_stack.pop()!;
 
     functions += func;
-    global_stack_offset -= local_stack_offset + 1;
-    local_stack_offset = last_local_stack_offset;
   }
 
   function aux(node: Node, context_id: number): string {
@@ -675,16 +734,17 @@ export const compile = (tree: SyntaxTree, path: string) => {
             return '';
           }
           case DT.var: {
-            const local_offset = local_stack_offset;
-            const global_offset = global_stack_offset;
             if (!node.value) throw Errors.NotImplemented();
             let value = parseExpression(node.value, context_id);
             if (value.length > 1) throw Errors.NotImplemented('tuples');
 
-            node.local_offset = local_offset;
-            node.global_offset = global_offset;
+            if (node.type_check_id === undefined)
+              throw Errors.CompilerError(`${node.name} has no type_check_id`);
 
             code += value[0].before + push(value[0].middle) + value[0].after;
+
+            node.global_offset = global_stack_offset;
+            node.local_offset = local_stack_offset;
 
             return code;
           }
@@ -694,7 +754,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
       }
       case NT.statement_debug: {
         const type_node = TypeHelper.getType(node.member!, undefined);
-        if (type_node.NT === NT.type_union)
+        if (type_node.NT === NT.type_union || type_node.NT === NT.type_tuple)
           throw Errors.NotImplemented(type_node.NT);
         if (typeof type_node.type === 'string')
           throw Errors.NotImplemented(TypeHelper.formatType(type_node));
@@ -719,6 +779,10 @@ export const compile = (tree: SyntaxTree, path: string) => {
               after +
               '\n';
 
+            // account for `call`;
+            global_stack_offset--;
+            local_stack_offset--;
+
             return code;
           }
           case Types.string.object: {
@@ -737,6 +801,11 @@ export const compile = (tree: SyntaxTree, path: string) => {
               call('sprintLF') +
               after +
               '\n';
+
+            // account for `call`;
+            global_stack_offset--;
+            local_stack_offset--;
+            
             return code;
           }
           default:
@@ -746,8 +815,11 @@ export const compile = (tree: SyntaxTree, path: string) => {
       case NT.statement_return: {
         if (node.parent.return_type.NT === NT.raw_type)
           throw Errors.CompilerError();
-        if (node.parent.return_type.NT === NT.type_union)
-          throw Errors.NotImplemented('union');
+        if (
+          node.parent.return_type.NT === NT.type_union ||
+          node.parent.return_type.NT === NT.type_tuple
+        )
+          throw Errors.NotImplemented(node.parent.return_type.NT);
 
         if (node.parent.return_type.type === TYPE_VOID && !node.member) {
           throw Errors.NotImplemented();
@@ -762,6 +834,15 @@ export const compile = (tree: SyntaxTree, path: string) => {
           code += mov('eax', middle);
         }
         code += after;
+
+        code += add(
+          'esp',
+          `${
+            Array.from(node.parent.context!.definitions.values()).filter(
+              (v) => v.node.DT === DT.const || v.node.DT === DT.var
+            ).length
+          } * 4`
+        );
 
         code += pop('ebp');
 
@@ -795,7 +876,6 @@ export const compile = (tree: SyntaxTree, path: string) => {
         );
 
         code +=
-          `\n; while statement\n` +
           `${label_success}:\n` +
           `\t; condition\n` +
           condition.before +
@@ -813,7 +893,6 @@ export const compile = (tree: SyntaxTree, path: string) => {
           statements_counter[node.NT] = statement_idx = 0;
         else statements_counter[node.NT] = statement_idx++;
 
-        code += `\n; is_else statement\n`;
         for (let i = 0; i < node.children.length; i++) {
           const branch = node.children[i];
 

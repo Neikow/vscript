@@ -64,6 +64,7 @@ export const enum NodeType {
   accessed_property = 'accessed_property',
   type_union = 'type_union',
   type_single = 'type_single',
+  type_tuple = 'type_tuple',
   type_with_parameters = 'type_with_parameters',
   raw_type = 'raw_type',
   array = 'array',
@@ -611,32 +612,31 @@ export interface RawTypeNode extends NodeBase {
   )[];
 }
 
+type TypeNodeTypes =
+  | LanguageObject
+  | LanguageObjectInstance
+  | TYPE_ANY
+  | TYPE_UNKNOWN
+  | TYPE_NEVER
+  | TYPE_UNDEFINED
+  | TYPE_VOID;
+
 export interface UnionTypeNode extends NodeBase {
   NT: NodeType.type_union;
-  types: (
-    | LanguageObject
-    | LanguageObjectInstance
-    | TYPE_ANY
-    | TYPE_UNKNOWN
-    | TYPE_NEVER
-    | TYPE_UNDEFINED
-    | TYPE_VOID
-  )[];
+  types: TypeNodeTypes[];
 }
 
 export interface SingleTypeNode extends NodeBase {
   NT: NodeType.type_single;
-  type:
-    | LanguageObject
-    | LanguageObjectInstance
-    | TYPE_ANY
-    | TYPE_UNKNOWN
-    | TYPE_UNDEFINED
-    | TYPE_VOID
-    | TYPE_NEVER;
+  type: TypeNodeTypes;
 }
 
-export type TypeNode = UnionTypeNode | SingleTypeNode;
+export interface TupleTypeNode extends NodeBase {
+  NT: NodeType.type_tuple;
+  types: TypeNodeTypes[];
+}
+
+export type TypeNode = UnionTypeNode | SingleTypeNode | TupleTypeNode;
 
 export interface TypeWithParametersNode extends NodeBase {
   NT: NodeType.type_with_parameters;

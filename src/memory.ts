@@ -84,7 +84,6 @@ export class Memory {
               NT: NT.accessed_property,
               target: node.left,
               property: node.right.value,
-              
             };
 
             return res;
@@ -158,10 +157,8 @@ export class Memory {
             location: Location.std,
             value_type: VSCTypeInt.object,
             is_builtin: false,
-            
           },
           location: node.location,
-          
         };
 
         if (reference.NT === NT.operator) {
@@ -188,7 +185,6 @@ export class Memory {
           left: reference,
           right: value,
           location: node.location,
-          
         };
 
         if (reference.NT === NT.operator) {
@@ -241,7 +237,6 @@ export class Memory {
           is_builtin: true,
           location: Location.std,
           value_type: TYPE_UNDEFINED,
-          
         },
       ];
 
@@ -272,7 +267,6 @@ export class Memory {
           location: Location.std,
           value: node.value,
           value_type: VSCTypeStr.object,
-          
         },
       ];
 
@@ -293,7 +287,6 @@ export class Memory {
           NT: NT.value_bool,
           value: node.value,
           value_type: VSCTypeBool.object,
-          
         },
       ];
 
@@ -311,7 +304,6 @@ export class Memory {
           NT: NT.value_num,
           value: val,
           value_type: node.value_type,
-          
         },
       ];
     }
@@ -325,7 +317,6 @@ export class Memory {
             NT: NT.value_ptr,
             value: NULL,
             value_type: VSCTypePtr.object,
-            
           },
         ];
       else if (node.value === UNDEFINED)
@@ -336,7 +327,6 @@ export class Memory {
             NT: NT.value_undefined,
             value_type: type ?? TYPE_UNDEFINED,
             value: UNDEFINED,
-            
           },
         ];
       else throw Errors.NotImplemented('Literals not implemented.');
@@ -355,7 +345,6 @@ export class Memory {
             value: node.location.format(),
             is_builtin: false,
             value_type: VSCTypeStr.object,
-            
           };
           return [res];
         }
@@ -374,7 +363,6 @@ export class Memory {
           NT: NT.value_type,
           value: node.definition.object,
           location: Location.std,
-          
         },
       ];
     }
@@ -385,7 +373,6 @@ export class Memory {
           NT: NT.value_type,
           value: node.value,
           location: node.location,
-          
         },
       ];
     }
@@ -402,7 +389,6 @@ export class Memory {
             ])
           ),
           location: Location.computed,
-          
         },
       ];
     }
@@ -418,7 +404,6 @@ export class Memory {
             return val[0];
           }),
           value_type: node.value_type!,
-          
         },
       ];
     }
@@ -427,12 +412,13 @@ export class Memory {
   }
 
   set(node: DefinitionNode, value: ComputableNode) {
-    if (node.DT === DT.struct) throw Errors.NotImplemented('struct');
+    if (node.DT === DT.struct) throw Errors.NotImplemented(DT.struct);
 
     if (node.definition_id === undefined)
       node.definition_id = this.definition_id++;
 
-    if (node.type.NT === NT.raw_type) throw Errors.ParserError('raw type node');
+    if (node.type.NT === NT.raw_type) throw Errors.ParserError(NT.raw_type);
+    if (node.type.NT === NT.type_tuple) throw Errors.ParserError(NT.type_tuple);
 
     if (node.DT === DT.function_argument) {
       if (
@@ -474,7 +460,6 @@ export class Memory {
         mutable: false,
         references: 1,
         value: computed,
-        
       });
       return;
     }
@@ -496,17 +481,20 @@ export class Memory {
         references: 0,
         mutable: false,
         value: node.value,
-        
       });
 
       return;
     }
     if (node.DT === DT.function_argument) {
       if (node.type.NT === NT.type_union)
-        throw Errors.ParserError('got union of types');
+        throw Errors.ParserError(NT.type_union);
 
       if (node.type.NT === NT.raw_type) {
         throw Errors.NotImplemented(NT.raw_type);
+      }
+
+      if (node.type.NT === NT.type_tuple) {
+        throw Errors.NotImplemented(NT.type_tuple);
       }
 
       if (
@@ -532,16 +520,15 @@ export class Memory {
           // TODO: dunno
           value_type: node.type.type,
           value: TYPE_UNKNOWN,
-          
         },
-        
       });
 
       return;
     }
 
-    if (node.type.NT === NT.type_union)
-      throw Errors.ParserError('got union of types');
+    if (node.type.NT === NT.type_union) throw Errors.ParserError(NT.type_union);
+
+    if (node.type.NT === NT.type_tuple) throw Errors.ParserError(NT.type_tuple);
 
     if (node.type.NT === NT.raw_type) throw Errors.ParserError('raw type node');
 
@@ -565,7 +552,6 @@ export class Memory {
         node.value,
         typeof node.type.type == 'string' ? undefined : node.type.type
       ),
-      
     });
   }
 
@@ -663,6 +649,10 @@ export class Memory {
         throw Errors.NotImplemented(NT.type_union);
       }
 
+      if (node.type.NT === NT.type_tuple) {
+        throw Errors.NotImplemented(NT.type_tuple);
+      }
+
       if (node.type.NT === NT.raw_type)
         throw Errors.ParserError('raw type node');
 
@@ -698,7 +688,6 @@ export class Memory {
         is_builtin: false,
         value: res.value,
         value_type: VSCTypeFun.object,
-        
       };
       return [fun];
     } else throw Errors.ParserError(`Not implemented`);

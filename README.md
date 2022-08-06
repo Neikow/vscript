@@ -125,7 +125,7 @@ obj Object [ param1: type, param2: type ] <T, Y> ( parent1, parent2, ... ) : {
 ## Running my code
 I am using [Arch WSL](https://github.com/yuk7/ArchWSL) for the developement, you may need to change the way Linux ASM compiler is ran on your side.
 
-- `npm start`: Executes the code inside TypeScript.
+- `npm start`: Executes the code with the TypeScript interpreter.
 
 - `npm run compile`: Compiles `asm.asm` to machine code.
 
