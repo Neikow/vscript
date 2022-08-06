@@ -954,7 +954,11 @@ export const type_check = (tree: SyntaxTree) => {
       case NT.statement_return: {
         if (node.parent.return_type.NT === NT.type_union) {
           if (!node.member) throw Errors.SyntaxError('Missing expression');
+
           const value_type = TypeHelper.getType(node.member, params);
+
+          if (value_type.NT === NT.type_tuple)
+            throw Errors.NotImplemented(NT.type_tuple);
 
           const type_list =
             value_type.NT === NT.type_single

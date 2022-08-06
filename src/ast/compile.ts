@@ -11,6 +11,7 @@ import {
   ExpressionNode,
   Node,
   NodeType as NT,
+  SingleTypeNode,
   TypeNode,
 } from '../syntax_tree_nodes';
 import { INFINITY, Location, NAN, TYPE_VOID } from '../types';
@@ -365,12 +366,12 @@ export const compile = (tree: SyntaxTree, path: string) => {
             )
               throw Errors.CompilerError();
 
-            console.debug(
-              `\nname : ${node.definition.name}\n` +
-                `ngo  : ${node.definition.global_offset} ; go  : ${global_stack_offset}\n` +
-                `nlo  : ${node.definition.local_offset}  ; lo  : ${local_stack_offset}\n` +
-                `ncid : ${node.definition.context.id}    ; cid : ${context_id}\n`
-            );
+            // console.debug(
+            //   `\nname : ${node.definition.name}\n` +
+            //     `ngo  : ${node.definition.global_offset} ; go  : ${global_stack_offset}\n` +
+            //     `nlo  : ${node.definition.local_offset}  ; lo  : ${local_stack_offset}\n` +
+            //     `ncid : ${node.definition.context.id}    ; cid : ${context_id}\n`
+            // );
 
             let address: string;
             if (node.definition.context.id === context_id) {
@@ -667,13 +668,18 @@ export const compile = (tree: SyntaxTree, path: string) => {
   }
 
   let string_index = 0;
+  const strings: { [str: string]: string } = {};
   function addLiteralString(str: string): string {
-    const id = `str${string_index++}`;
-
+    if (Object.keys(strings).includes(str)) return strings[str];
+    
+    const id = `_s${string_index++}`;
     data += `${id}: db ${str
       .split('\\n')
       .map((s) => `'${s}'`)
       .join(', 0xA, ')}, 0h\n`.replaceAll("'', ", '');
+
+    strings[str] = id;
+
     return id;
   }
 
@@ -754,63 +760,58 @@ export const compile = (tree: SyntaxTree, path: string) => {
       }
       case NT.statement_debug: {
         const type_node = TypeHelper.getType(node.member!, undefined);
-        if (type_node.NT === NT.type_union || type_node.NT === NT.type_tuple)
+        if (type_node.NT === NT.type_union)
           throw Errors.NotImplemented(type_node.NT);
+
+        if (type_node.NT === NT.type_tuple) {
+          if (!node.member || node.member.NT !== NT.expression_list)
+            throw Errors.CompilerError();
+
+          for (let i = 0; i < type_node.types.length - 1; i++) {
+            if (type_node.types[i].NT !== NT.type_single)
+              throw Errors.NotImplemented(type_node.types[i].NT);
+            code += print_value(
+              node.member.members[i],
+              <SingleTypeNode>type_node.types[i],
+              context_id,
+              false
+            );
+            code += print_value(
+              {
+                NT: NT.literal_string,
+                value: ', ',
+                location: Location.computed,
+                value_type: Types.string.object,
+              },
+              { NT: NT.type_single, type: Types.string.object },
+              context_id,
+              false
+            );
+          }
+
+          if (type_node.types[type_node.types.length - 1].NT !== NT.type_single)
+            throw Errors.NotImplemented(
+              type_node.types[type_node.types.length - 1].NT
+            );
+
+          code += print_value(
+            node.member.members[type_node.types.length - 1],
+            <SingleTypeNode>type_node.types[type_node.types.length - 1],
+            context_id,
+            true
+          );
+
+          return code;
+        }
+
         if (typeof type_node.type === 'string')
           throw Errors.NotImplemented(TypeHelper.formatType(type_node));
         if (type_node.type.kind === LanguageObjectKind.instance)
           throw Errors.NotImplemented(LanguageObjectKind.instance);
 
-        switch (type_node.type) {
-          case Types.integer.object: {
-            const res = parseExpression(node.member!, context_id);
-            if (res.length > 1) throw Errors.NotImplemented('tuples');
+        code += print_value(node.member!, type_node, context_id);
 
-            const { before, middle, after } = res[0];
-
-            if (middle === '')
-              throw Errors.CompilerError('Missing value to log');
-
-            code +=
-              `\t; statement_debug (int)\n` +
-              before +
-              mov('eax', middle) +
-              call('iprintLF') +
-              after +
-              '\n';
-
-            // account for `call`;
-            global_stack_offset--;
-            local_stack_offset--;
-
-            return code;
-          }
-          case Types.string.object: {
-            const res = parseExpression(node.member!, context_id);
-            if (res.length > 1) throw Errors.NotImplemented('tuples');
-
-            const { before, middle, after } = res[0];
-
-            if (middle === '')
-              throw Errors.CompilerError('Missing value to log');
-
-            code +=
-              `\t; statement_debug (str)\n` +
-              before +
-              mov('eax', middle) +
-              call('sprintLF') +
-              after +
-              '\n';
-
-            // account for `call`;
-            global_stack_offset--;
-            local_stack_offset--;
-            
-            return code;
-          }
-          default:
-            throw Errors.NotImplemented(type_node.type.display_name);
-        }
+        return code;
       }
       case NT.statement_return: {
         if (node.parent.return_type.NT === NT.raw_type)
@@ -822,7 +823,17 @@ export const compile = (tree: SyntaxTree, path: string) => {
           throw Errors.NotImplemented(node.parent.return_type.NT);
 
         if (node.parent.return_type.type === TYPE_VOID && !node.member) {
-          throw Errors.NotImplemented();
+          code += add(
+            'esp',
+            `${
+              Array.from(node.parent.context!.definitions.values()).filter(
+                (v) => v.node.DT === DT.const || v.node.DT === DT.var
+              ).length
+            } * 4`
+          );
+          code += pop('ebp');
+          code += ret();
+          return code;
         }
 
         const value = parseExpression(node.member!, context_id);
@@ -946,4 +957,61 @@ export const compile = (tree: SyntaxTree, path: string) => {
   text += mov('ebx', '0', 'exit code') + call('_exit');
 
   writeFileSync(path, base + text + functions + data + bss);
+
+  function print_value(
+    node: Node,
+    type_node: SingleTypeNode,
+    context_id: number,
+    line_feed: boolean = true
+  ) {
+    let code = '';
+    switch (type_node.type) {
+      case Types.integer.object: {
+        const res = parseExpression(node, context_id);
+        if (res.length > 1) throw Errors.NotImplemented('tuples');
+
+        const { before, middle, after } = res[0];
+
+        if (middle === '') throw Errors.CompilerError('Missing value to log');
+
+        code +=
+          `\t; statement_debug (int)\n` +
+          before +
+          mov('eax', middle) +
+          call(line_feed ? 'iprintLF' : 'iprint') +
+          after +
+          '\n';
+
+        // account for `call`;
+        global_stack_offset--;
+        local_stack_offset--;
+
+        return code;
+      }
+      case Types.string.object: {
+        const res = parseExpression(node, context_id);
+        if (res.length > 1) throw Errors.NotImplemented('tuples');
+
+        const { before, middle, after } = res[0];
+
+        if (middle === '') throw Errors.CompilerError('Missing value to log');
+
+        code +=
+          `\t; statement_debug (str)\n` +
+          before +
+          mov('eax', middle) +
+          call(line_feed ? 'iprintLF' : 'sprint') +
+          after +
+          '\n';
+
+        // account for `call`;
+        global_stack_offset--;
+        local_stack_offset--;
+
+        return code;
+      }
+      default:
+        throw Errors.NotImplemented(TypeHelper.formatType(type_node));
+    }
+  }
 };

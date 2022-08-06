@@ -214,6 +214,9 @@ const TypeHelper = {
                 if (res.type.NT === NT.raw_type)
                   throw Errors.NotImplemented(NT.raw_type);
 
+                if (res.type.NT === NT.type_tuple)
+                  throw Errors.NotImplemented(NT.type_tuple);
+
                 if (res.type.NT === NT.type_single) {
                   if (!property_types.includes(res.type.type))
                     property_types.push(res.type.type);
@@ -687,7 +690,15 @@ const TypeHelper = {
       }
 
       case NT.expression_list: {
-        const res = [];
+        const type_list: TypeNode[] = [];
+        for (const mem of node.members) {
+          const type = TypeHelper.getType(mem, params);
+          type_list.push(type);
+        }
+        return {
+          NT: NT.type_tuple,
+          types: type_list,
+        };
       }
 
       default: {
@@ -766,6 +777,9 @@ const TypeHelper = {
     type_node: TypeNode,
     constraint: TypeNode
   ): TypeNode | undefined => {
+    if (type_node.NT === NT.type_tuple)
+      throw Errors.NotImplemented(NT.type_tuple);
+
     if (type_node.NT === NT.type_single) {
       if (constraint.NT === NT.type_single) {
         if (typeof type_node.type == 'string')
@@ -782,7 +796,9 @@ const TypeHelper = {
       }
     }
 
-    if (constraint.NT === NT.type_single) {
+    if (constraint.NT === NT.type_tuple)
+      throw Errors.NotImplemented(NT.type_tuple);
+    else if (constraint.NT === NT.type_single) {
       return undefined;
     } else {
       const types = type_node.types.filter((type) =>
@@ -953,6 +969,12 @@ const TypeHelper = {
           continue;
         }
 
+        if (current.NT === NT.type_tuple)
+          throw Errors.NotImplemented(NT.type_tuple);
+
+        if (val.NT === NT.type_tuple)
+          throw Errors.NotImplemented(NT.type_tuple);
+
         if (current.NT === NT.type_union) {
           const new_val = current.types.filter(
             (e) =>
@@ -978,7 +1000,7 @@ const TypeHelper = {
         }
 
         if (current.NT === NT.type_single) {
-          if (val.NT === NT.type_union || val.NT === NT.type_tuple) {
+          if (val.NT === NT.type_union) {
             throw Errors.NotImplemented(val.NT);
           }
           if (current.type === val.type) {

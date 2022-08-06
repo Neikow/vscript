@@ -633,7 +633,7 @@ export interface SingleTypeNode extends NodeBase {
 
 export interface TupleTypeNode extends NodeBase {
   NT: NodeType.type_tuple;
-  types: TypeNodeTypes[];
+  types: TypeNode[];
 }
 
 export type TypeNode = UnionTypeNode | SingleTypeNode | TupleTypeNode;
