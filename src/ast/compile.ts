@@ -9,6 +9,7 @@ import {
   DefinitionType as DT,
   ExpressionListNode,
   ExpressionNode,
+  FunctionNode,
   Node,
   NodeType as NT,
   SingleTypeNode,
@@ -31,6 +32,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
   // const stack_offsets: Map<number, number> = new Map();
 
   const offsets_stack: number[] = [];
+  const functions_stack: FunctionNode[] = [];
   let local_stack_offset: number = 0;
   let global_stack_offset: number = 0;
 
@@ -45,8 +47,13 @@ export const compile = (tree: SyntaxTree, path: string) => {
   }
 
   function call(v: string, comment?: string) {
-    local_stack_offset++;
-    global_stack_offset++;
+    // Increment the stack offset only if the function deals with decrementing,
+    // Builtin functions are hard coded and do not decrement the counters after execution.
+    if (!['iprintLF', 'iprint', 'sprintLF', 'sprint', '_exit'].includes(v)) {
+      local_stack_offset++;
+      global_stack_offset++;
+    }
+
     return `\tcall\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
   }
 
@@ -59,7 +66,10 @@ export const compile = (tree: SyntaxTree, path: string) => {
   function push(v: string, comment?: string) {
     local_stack_offset++;
     global_stack_offset++;
-    return `\tpush\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
+    return (
+      `\t; lo: ${local_stack_offset}, go: ${global_stack_offset}\n\tpush\t${v}` +
+      (comment ? `\t; ${comment}\n` : '\n')
+    );
   }
 
   function mov(v1: string, v2: string, comment?: string) {
@@ -374,15 +384,16 @@ export const compile = (tree: SyntaxTree, path: string) => {
             // );
 
             let address: string;
-            if (node.definition.context.id === context_id) {
-              address = `[ebp - ${
-                global_stack_offset - node.definition.global_offset + 2
-              } * 4]`;
-            } else {
-              address = `[ebp + ${
-                global_stack_offset - node.definition.global_offset
-              } * 4]`;
-            }
+
+            if (node.definition.context!.id === context_id)
+              address = `[ebp - ${local_stack_offset} * 4]`;
+            else
+              address = `[ebp + ${local_stack_offset + functions_stack
+                .map((v) => v.arguments.length)
+                .reduce((p, c) => p + c + 1, 0) + offsets_stack.reduce(
+                (p, c) => p + c,
+                0
+              ) - global_stack_offset} * 4]`;
 
             return [
               {
@@ -671,7 +682,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
   const strings: { [str: string]: string } = {};
   function addLiteralString(str: string): string {
     if (Object.keys(strings).includes(str)) return strings[str];
-    
+
     const id = `_s${string_index++}`;
     data += `${id}: db ${str
       .split('\\n')
@@ -685,6 +696,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
 
   function addFunction(node: DefinitionNodeFunction): void {
     offsets_stack.push(local_stack_offset);
+    functions_stack.push(node.value);
     local_stack_offset = 0;
 
     const format_args = node.value.arguments
@@ -720,6 +732,8 @@ export const compile = (tree: SyntaxTree, path: string) => {
     global_stack_offset -= local_stack_offset;
     if (offsets_stack.length < 1) throw Errors.CompilerError();
     local_stack_offset = offsets_stack.pop()!;
+
+    functions_stack.pop();
 
     functions += func;
   }
@@ -1000,13 +1014,9 @@ export const compile = (tree: SyntaxTree, path: string) => {
           `\t; statement_debug (str)\n` +
           before +
           mov('eax', middle) +
-          call(line_feed ? 'iprintLF' : 'sprint') +
+          call(line_feed ? 'sprintLF' : 'sprint') +
           after +
           '\n';
-
-        // account for `call`;
-        global_stack_offset--;
-        local_stack_offset--;
 
         return code;
       }

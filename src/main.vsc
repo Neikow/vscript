@@ -2,24 +2,31 @@ let z = 12;
 debug 'z', z;
 
 fn debug_x(x: int) {
+  debug 'x', x;
+
   debug 'z', z;
   let y = 10;
   debug 'y', y;
   debug 'z', z;
 
-  fn debug_xy(x: int) {
-    debug 'z', z;
-    debug 'y', y; 
-  }
 
-  debug 'z', z;
-  debug 'y', y; 
+  // fn debug_xy(x: int) {
+  //   // debug dump_mem;
+  //   debug 'z', z;
+  //   debug 'y', y; 
+  // }
 
-  debug_xy(x);
+  // debug 'z', z;
+  // debug 'y', y; 
+
+  // debug_xy(x);
 }
 
 debug 'z', z;
 
+debug dump_mem;
+
 debug_x(z);
+
 
 debug 'z', z;
