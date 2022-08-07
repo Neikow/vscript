@@ -356,7 +356,10 @@ export const compile = (tree: SyntaxTree, path: string) => {
             ];
           }
           case DT.function_argument: {
-            let address = `[ebp + ${node.definition.index + 2} * 4]`;
+            // return address and function base pointer
+            const offset = 2; 
+            
+            let address = `[ebp + ${node.definition.index + offset} * 4]`;
             return [
               {
                 before: mov('eax', address, `(${node.definition.name})`),
@@ -386,14 +389,14 @@ export const compile = (tree: SyntaxTree, path: string) => {
             let address: string;
 
             if (node.definition.context!.id === context_id)
-              address = `[ebp - ${local_stack_offset} * 4]`;
+              address = `[ebp - ${node.definition.local_offset} * 4]`;
             else
-              address = `[ebp + ${local_stack_offset + functions_stack
+              address = `[ebp + (${local_stack_offset} + ${functions_stack
                 .map((v) => v.arguments.length)
-                .reduce((p, c) => p + c + 1, 0) + offsets_stack.reduce(
+                .reduce((p, c) => p + c + 1, 0)} + ${offsets_stack.reduce(
                 (p, c) => p + c,
                 0
-              ) - global_stack_offset} * 4]`;
+              )} + ${offsets_stack.length - 1} - ${node.definition.local_offset}) * 4]`;
 
             return [
               {
@@ -697,7 +700,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
   function addFunction(node: DefinitionNodeFunction): void {
     offsets_stack.push(local_stack_offset);
     functions_stack.push(node.value);
-    local_stack_offset = 0;
+    local_stack_offset = 0 - node.value.arguments.length;
 
     const format_args = node.value.arguments
       .map(
@@ -995,10 +998,6 @@ export const compile = (tree: SyntaxTree, path: string) => {
           call(line_feed ? 'iprintLF' : 'iprint') +
           after +
           '\n';
-
-        // account for `call`;
-        global_stack_offset--;
-        local_stack_offset--;
 
         return code;
       }
