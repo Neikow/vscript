@@ -651,6 +651,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
       context: curr_ctx,
       local_offset: undefined,
       global_offset: undefined,
+      definition_depth: undefined,
       location: curr_tok?.loc ?? Location.std,
       type: { NT: AST.NodeType.type_single, type: TYPE_UNKNOWN },
       name: curr_tok!.val,

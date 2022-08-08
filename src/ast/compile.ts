@@ -357,8 +357,8 @@ export const compile = (tree: SyntaxTree, path: string) => {
           }
           case DT.function_argument: {
             // return address and function base pointer
-            const offset = 2; 
-            
+            const offset = 2;
+
             let address = `[ebp + ${node.definition.index + offset} * 4]`;
             return [
               {
@@ -375,29 +375,38 @@ export const compile = (tree: SyntaxTree, path: string) => {
 
             if (
               node.definition.global_offset === undefined ||
-              node.definition.local_offset === undefined
+              node.definition.local_offset === undefined ||
+              node.definition.definition_depth === undefined
             )
               throw Errors.CompilerError();
 
-            // console.debug(
-            //   `\nname : ${node.definition.name}\n` +
-            //     `ngo  : ${node.definition.global_offset} ; go  : ${global_stack_offset}\n` +
-            //     `nlo  : ${node.definition.local_offset}  ; lo  : ${local_stack_offset}\n` +
-            //     `ncid : ${node.definition.context.id}    ; cid : ${context_id}\n`
-            // );
-
             let address: string;
 
-            if (node.definition.context!.id === context_id)
-              address = `[ebp - ${node.definition.local_offset} * 4]`;
-            else
-              address = `[ebp + (${local_stack_offset} + ${functions_stack
-                .map((v) => v.arguments.length)
-                .reduce((p, c) => p + c + 1, 0)} + ${offsets_stack.reduce(
-                (p, c) => p + c,
-                0
-              )} + ${offsets_stack.length - 1} - ${node.definition.local_offset}) * 4]`;
+            if (node.definition.context!.id === context_id) {
+              const current_function =
+                functions_stack[functions_stack.length - 1];
 
+              address = `[ebp - ${
+                node.definition.local_offset -
+                functions_stack.length +
+                (current_function ? current_function.arguments.length : 0)
+              } * 4]`;
+            } else {
+              const global_arg_count = functions_stack
+                .map((v) => v.arguments.length)
+                .reduce((p, c) => p + c);
+              const depth =
+                functions_stack.length - node.definition.definition_depth;
+              const global_offset = offsets_stack.reduce((p, c) => p + c);
+
+              address = `[ebp + ${
+                1 +
+                global_arg_count +
+                depth +
+                global_offset -
+                node.definition.global_offset
+              } * 4]`;
+            }
             return [
               {
                 before: mov('eax', address, `(${node.definition.name})`),
@@ -768,6 +777,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
 
             node.global_offset = global_stack_offset;
             node.local_offset = local_stack_offset;
+            node.definition_depth = functions_stack.length;
 
             return code;
           }
@@ -840,14 +850,16 @@ export const compile = (tree: SyntaxTree, path: string) => {
           throw Errors.NotImplemented(node.parent.return_type.NT);
 
         if (node.parent.return_type.type === TYPE_VOID && !node.member) {
-          code += add(
-            'esp',
-            `${
-              Array.from(node.parent.context!.definitions.values()).filter(
-                (v) => v.node.DT === DT.const || v.node.DT === DT.var
-              ).length
-            } * 4`
-          );
+          code +=
+            '\n' +
+            add(
+              'esp',
+              `${
+                Array.from(node.parent.context!.definitions.values()).filter(
+                  (v) => v.node.DT === DT.const || v.node.DT === DT.var
+                ).length
+              } * 4`
+            );
           code += pop('ebp');
           code += ret();
           return code;
@@ -863,14 +875,16 @@ export const compile = (tree: SyntaxTree, path: string) => {
         }
         code += after;
 
-        code += add(
-          'esp',
-          `${
-            Array.from(node.parent.context!.definitions.values()).filter(
-              (v) => v.node.DT === DT.const || v.node.DT === DT.var
-            ).length
-          } * 4`
-        );
+        code +=
+          '\n' +
+          add(
+            'esp',
+            `${
+              Array.from(node.parent.context!.definitions.values()).filter(
+                (v) => v.node.DT === DT.const || v.node.DT === DT.var
+              ).length
+            } * 4`
+          );
 
         code += pop('ebp');
 
@@ -979,7 +993,8 @@ export const compile = (tree: SyntaxTree, path: string) => {
     node: Node,
     type_node: SingleTypeNode,
     context_id: number,
-    line_feed: boolean = true
+    line_feed: boolean = true,
+    comment: boolean = true
   ) {
     let code = '';
     switch (type_node.type) {
@@ -992,12 +1007,11 @@ export const compile = (tree: SyntaxTree, path: string) => {
         if (middle === '') throw Errors.CompilerError('Missing value to log');
 
         code +=
-          `\t; statement_debug (int)\n` +
+          (comment ? `\t; statement_debug (int)\n` : false) +
           before +
           mov('eax', middle) +
           call(line_feed ? 'iprintLF' : 'iprint') +
-          after +
-          '\n';
+          after;
 
         return code;
       }
@@ -1010,12 +1024,11 @@ export const compile = (tree: SyntaxTree, path: string) => {
         if (middle === '') throw Errors.CompilerError('Missing value to log');
 
         code +=
-          `\t; statement_debug (str)\n` +
+          (comment ? `\t; statement_debug (str)\n` : false) +
           before +
           mov('eax', middle) +
           call(line_feed ? 'sprintLF' : 'sprint') +
-          after +
-          '\n';
+          after;
 
         return code;
       }
