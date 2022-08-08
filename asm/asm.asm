@@ -12,48 +12,30 @@ _start:
 	xor		eax, eax
 	xor		ebx, ebx
 	xor		ecx, ecx
-	xor		edx, eax
+	xor		edx, edx
+	mov		ebp, esp	; save program base pointer
+	; lo: 1, go: 1
+	push	ebp
 
-	mov 	eax, ebp
-	call 	iprintLF
+	; lo: 2, go: 2
+	push	10
+	; statement_debug (str)
+	mov		eax, _s0
+	call	sprint
 
-	; statement_debug
-	; call add
-	push	2
-	push	1
-	push	2
-	call	fun_add1
-	add		esp, 3 * 4
-	mov		eax, eax
+	; statement_debug (str)
+	mov		eax, _s1
+	call	sprint
+
+	; statement_debug (int)
+	mov		eax, [ebp - 2 * 4]	; (z)
 	call	iprintLF
 
-	mov 	eax, ebp
-	call 	iprintLF
-
-
-	; exit program with 0 exit code
-	mov		ebx, 0
+	mov		ebx, 0	; exit code
 	call	_exit
 
-; fn add(x: int, y: int): int
-fun_add1:
-	mov 	eax, ebp
-	call 	iprintLF
-	
-	mov		edx, esp
-
-	; let sum
-	; x arg
-	mov		eax, [edx + 2 * 4]
-	mov		ebx, eax
-	; y arg
-	mov		eax, [edx + 3 * 4]
-	mov		eax, eax
-	add		eax, ebx
-	push	eax
-	mov eax, 0
-	ret
-
 section .data
+_s0: db 'z', 0h
+_s1: db ', ', 0h
 
 section .bss

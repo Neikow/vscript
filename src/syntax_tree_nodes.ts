@@ -64,6 +64,7 @@ export const enum NodeType {
   accessed_property = 'accessed_property',
   type_union = 'type_union',
   type_single = 'type_single',
+  type_tuple = 'type_tuple',
   type_with_parameters = 'type_with_parameters',
   raw_type = 'raw_type',
   array = 'array',
@@ -356,7 +357,9 @@ export interface DefinitionNodeVar extends NodeBase {
   DT: DefinitionType.var;
   definition_id: number | undefined;
   type_check_id: number | undefined;
-  index: number | undefined;
+  local_offset: number | undefined;
+  global_offset: number | undefined;
+  definition_depth: number | undefined;
   context: ContextNode;
   name: string;
   mutated: boolean;
@@ -370,7 +373,9 @@ export interface DefinitionNodeConst extends NodeBase {
   DT: DefinitionType.const;
   definition_id: number | undefined;
   type_check_id: number | undefined;
-  index: number | undefined;
+  local_offset: number | undefined;
+  global_offset: number | undefined;
+  definition_depth: number | undefined;
   context: ContextNode;
   name: string;
   mutated: false;
@@ -609,32 +614,31 @@ export interface RawTypeNode extends NodeBase {
   )[];
 }
 
+type TypeNodeTypes =
+  | LanguageObject
+  | LanguageObjectInstance
+  | TYPE_ANY
+  | TYPE_UNKNOWN
+  | TYPE_NEVER
+  | TYPE_UNDEFINED
+  | TYPE_VOID;
+
 export interface UnionTypeNode extends NodeBase {
   NT: NodeType.type_union;
-  types: (
-    | LanguageObject
-    | LanguageObjectInstance
-    | TYPE_ANY
-    | TYPE_UNKNOWN
-    | TYPE_NEVER
-    | TYPE_UNDEFINED
-    | TYPE_VOID
-  )[];
+  types: TypeNodeTypes[];
 }
 
 export interface SingleTypeNode extends NodeBase {
   NT: NodeType.type_single;
-  type:
-    | LanguageObject
-    | LanguageObjectInstance
-    | TYPE_ANY
-    | TYPE_UNKNOWN
-    | TYPE_UNDEFINED
-    | TYPE_VOID
-    | TYPE_NEVER;
+  type: TypeNodeTypes;
 }
 
-export type TypeNode = UnionTypeNode | SingleTypeNode;
+export interface TupleTypeNode extends NodeBase {
+  NT: NodeType.type_tuple;
+  types: TypeNode[];
+}
+
+export type TypeNode = UnionTypeNode | SingleTypeNode | TupleTypeNode;
 
 export interface TypeWithParametersNode extends NodeBase {
   NT: NodeType.type_with_parameters;

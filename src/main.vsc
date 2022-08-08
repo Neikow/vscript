@@ -1,7 +1,2 @@
-fn add(x: int, y: int): int {
-  let sum = x + y;
-
-  return sum;
-}
-
-debug add(1, 2);
+let z = 10;
+debug 'z', z;

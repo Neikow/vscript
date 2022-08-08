@@ -33,6 +33,7 @@ import {
   TYPE_VOID,
   UNDEFINED,
 } from './types';
+import { Types } from './std/types';
 
 let GLOBAL_NODE_ID = 0;
 
@@ -106,6 +107,9 @@ const TypeHelper = {
             if (lType.NT === NT.type_union || rType.NT === NT.type_union)
               throw Errors.NotImplemented(NT.type_union);
 
+            if (lType.NT === NT.type_tuple || rType.NT === NT.type_tuple)
+              throw Errors.NotImplemented(NT.type_union);
+
             if (
               typeof lType.type === 'string' ||
               typeof rType.type === 'string'
@@ -176,6 +180,10 @@ const TypeHelper = {
               throw Errors.ParserError('Wrong node type');
             const target_type_node = TypeHelper.getType(node.left, params);
 
+            if (target_type_node.NT === NT.type_tuple) {
+              throw Errors.NotImplemented(NT.type_tuple);
+            }
+
             if (target_type_node.NT === NT.type_union) {
               const property_types: SingleTypeNode['type'][] = [];
 
@@ -205,6 +213,9 @@ const TypeHelper = {
 
                 if (res.type.NT === NT.raw_type)
                   throw Errors.NotImplemented(NT.raw_type);
+
+                if (res.type.NT === NT.type_tuple)
+                  throw Errors.NotImplemented(NT.type_tuple);
 
                 if (res.type.NT === NT.type_single) {
                   if (!property_types.includes(res.type.type))
@@ -310,6 +321,13 @@ const TypeHelper = {
             }
 
             if (
+              lTypeNode.NT === NT.type_tuple ||
+              rTypeNode.NT === NT.type_tuple
+            ) {
+              throw Errors.NotImplemented(NT.type_tuple);
+            }
+
+            if (
               rTypeNode.type == VSCTypeInt.object &&
               lTypeNode.type == VSCTypeInt.object
             ) {
@@ -350,6 +368,13 @@ const TypeHelper = {
               rTypeNode.NT === NT.type_union
             ) {
               throw Errors.NotImplemented(NT.type_union);
+            }
+
+            if (
+              lTypeNode.NT === NT.type_tuple ||
+              rTypeNode.NT === NT.type_tuple
+            ) {
+              throw Errors.NotImplemented(NT.type_tuple);
             }
 
             if (
@@ -398,6 +423,13 @@ const TypeHelper = {
             }
 
             if (
+              lTypeNode.NT === NT.type_tuple ||
+              rTypeNode.NT === NT.type_tuple
+            ) {
+              throw Errors.NotImplemented(NT.type_union);
+            }
+
+            if (
               rTypeNode.type == VSCTypeInt.object &&
               lTypeNode.type == VSCTypeInt.object
             ) {
@@ -430,6 +462,10 @@ const TypeHelper = {
               throw Errors.NotImplemented(NT.type_union);
             }
 
+            if (rTypeNode.NT === NT.type_tuple) {
+              throw Errors.NotImplemented(NT.type_union);
+            }
+
             if (
               rTypeNode.type === VSCTypeInt.object ||
               rTypeNode.type === VSCTypeFlt.object
@@ -451,6 +487,10 @@ const TypeHelper = {
             const lTypeNode = TypeHelper.getType(node.left, params);
 
             if (lTypeNode.NT === NT.type_union) {
+              throw Errors.NotImplemented(NT.type_union);
+            }
+
+            if (lTypeNode.NT === NT.type_tuple) {
               throw Errors.NotImplemented(NT.type_union);
             }
 
@@ -493,6 +533,10 @@ const TypeHelper = {
                 throw Errors.NotImplemented(NT.type_union);
               }
 
+              if (value_type_node.NT === NT.type_tuple) {
+                throw Errors.NotImplemented(NT.type_tuple);
+              }
+
               const struct_field = remaining_struct_fields[i][1];
 
               if (struct_field.kind === PropertyKind.type)
@@ -500,6 +544,10 @@ const TypeHelper = {
 
               if (struct_field.type.NT == NT.type_union) {
                 throw Errors.NotImplemented(NT.type_union);
+              }
+
+              if (struct_field.type.NT == NT.type_tuple) {
+                throw Errors.NotImplemented(NT.type_tuple);
               }
 
               if (struct_field.type.NT === NT.raw_type)
@@ -520,6 +568,10 @@ const TypeHelper = {
 
                 if (fulfilled[0][1].type.NT === NT.type_union) {
                   throw Errors.NotImplemented(NT.type_union);
+                }
+
+                if (fulfilled[0][1].type.NT === NT.type_tuple) {
+                  throw Errors.NotImplemented(NT.type_tuple);
                 }
 
                 if (fulfilled[0][1].type.NT === NT.raw_type) {
@@ -581,8 +633,11 @@ const TypeHelper = {
           params
         );
 
-        if (array_type_node.NT === NT.type_union)
-          throw Errors.NotImplemented('union type');
+        if (
+          array_type_node.NT === NT.type_union ||
+          array_type_node.NT === NT.type_tuple
+        )
+          throw Errors.NotImplemented(array_type_node.NT);
 
         if (typeof array_type_node.type === 'string')
           throw Errors.NotImplemented('string type');
@@ -592,8 +647,11 @@ const TypeHelper = {
             node.list.members[i],
             params
           );
-          if (array_value_type_node.NT === NT.type_union)
-            throw Errors.NotImplemented('union type');
+          if (
+            array_value_type_node.NT === NT.type_union ||
+            array_value_type_node.NT === NT.type_tuple
+          )
+            throw Errors.NotImplemented(array_value_type_node.NT);
 
           if (array_type_node.type !== array_type_node.type)
             throw Errors.NotImplemented();
@@ -618,6 +676,28 @@ const TypeHelper = {
         return {
           NT: NT.type_single,
           type: type,
+        };
+      }
+
+      case NT.special: {
+        switch (node.value) {
+          case 'dump_mem':
+            return { NT: NT.type_single, type: Types.string.object };
+          default: {
+            throw Errors.NotImplemented(node.value);
+          }
+        }
+      }
+
+      case NT.expression_list: {
+        const type_list: TypeNode[] = [];
+        for (const mem of node.members) {
+          const type = TypeHelper.getType(mem, params);
+          type_list.push(type);
+        }
+        return {
+          NT: NT.type_tuple,
+          types: type_list,
         };
       }
 
@@ -662,6 +742,9 @@ const TypeHelper = {
     }
   },
   formatType: (node: TypeNode, useColors = true) => {
+    if (node.NT === NT.type_tuple) {
+      throw Errors.NotImplemented(node.NT);
+    }
     if (node.NT === NT.type_union) {
       return node.types
         .map((t) => {
@@ -694,6 +777,9 @@ const TypeHelper = {
     type_node: TypeNode,
     constraint: TypeNode
   ): TypeNode | undefined => {
+    if (type_node.NT === NT.type_tuple)
+      throw Errors.NotImplemented(NT.type_tuple);
+
     if (type_node.NT === NT.type_single) {
       if (constraint.NT === NT.type_single) {
         if (typeof type_node.type == 'string')
@@ -710,7 +796,9 @@ const TypeHelper = {
       }
     }
 
-    if (constraint.NT === NT.type_single) {
+    if (constraint.NT === NT.type_tuple)
+      throw Errors.NotImplemented(NT.type_tuple);
+    else if (constraint.NT === NT.type_single) {
       return undefined;
     } else {
       const types = type_node.types.filter((type) =>
@@ -881,6 +969,12 @@ const TypeHelper = {
           continue;
         }
 
+        if (current.NT === NT.type_tuple)
+          throw Errors.NotImplemented(NT.type_tuple);
+
+        if (val.NT === NT.type_tuple)
+          throw Errors.NotImplemented(NT.type_tuple);
+
         if (current.NT === NT.type_union) {
           const new_val = current.types.filter(
             (e) =>
@@ -907,7 +1001,7 @@ const TypeHelper = {
 
         if (current.NT === NT.type_single) {
           if (val.NT === NT.type_union) {
-            throw Errors.NotImplemented(NT.type_union);
+            throw Errors.NotImplemented(val.NT);
           }
           if (current.type === val.type) {
             res.set(id, {

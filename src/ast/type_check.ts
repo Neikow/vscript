@@ -95,7 +95,12 @@ export const type_check = (tree: SyntaxTree) => {
   function compileType(node: RawTypeNode | TypeNode): TypeNode {
     const res: SingleTypeNode['type'][] = [];
 
-    if (node.NT === NT.type_single || node.NT === NT.type_union) return node;
+    if (
+      node.NT === NT.type_single ||
+      node.NT === NT.type_union ||
+      node.NT === NT.type_tuple
+    )
+      return node;
 
     for (const T_node of node.types) {
       if (typeof T_node === 'string') {
@@ -104,6 +109,8 @@ export const type_check = (tree: SyntaxTree) => {
         res.push(T_node);
       } else if (T_node.NT === NT.raw_type) {
         const val = compileType(T_node);
+        if (val.NT === NT.type_tuple)
+          throw Errors.NotImplemented(NT.type_tuple);
         if (val.NT === NT.type_union) {
           res.push(...val.types);
         } else {
@@ -164,15 +171,10 @@ export const type_check = (tree: SyntaxTree) => {
   }
 
   function compileTypes(node: ContextNode) {
-    let idx = 0;
     node.definitions.forEach((def) => {
       if (def.child_type.NT === NT.raw_type) {
         def.node.type = compileType(def.child_type);
         def.child_type = def.node.type;
-      }
-
-      if (def.node.DT === DT.const || def.node.DT === DT.var) {
-        def.node.index = idx++;
       }
     });
   }
@@ -282,6 +284,10 @@ export const type_check = (tree: SyntaxTree) => {
               throw Errors.NotImplemented(NT.type_union);
             }
 
+            if (node.type.NT === NT.type_tuple) {
+              throw Errors.NotImplemented(NT.type_union);
+            }
+
             if (node.type.NT === NT.raw_type) {
               throw Errors.TypeCheckError(NT.raw_type);
             }
@@ -291,6 +297,10 @@ export const type_check = (tree: SyntaxTree) => {
               const type_node = TypeHelper.getType(node.value, params);
 
               if (type_node.NT === NT.type_union) {
+                throw Errors.NotImplemented(NT.type_union);
+              }
+
+              if (type_node.NT === NT.type_tuple) {
                 throw Errors.NotImplemented(NT.type_union);
               }
 
@@ -324,6 +334,10 @@ export const type_check = (tree: SyntaxTree) => {
               throw Errors.NotImplemented(NT.type_union);
             }
 
+            if (expr_type.NT === NT.type_tuple) {
+              throw Errors.NotImplemented(NT.type_union);
+            }
+
             if (
               node.type.type !== TYPE_UNKNOWN &&
               node.type.type !== expr_type.type
@@ -336,6 +350,10 @@ export const type_check = (tree: SyntaxTree) => {
           case DT.function: {
             if (!node.value.context)
               throw Errors.ParserError('missing context on function');
+
+            for (const arg of node.value.arguments) {
+              arg.type = compileType(arg.type);
+            }
 
             if (node.value.return_type.NT === NT.raw_type) {
               node.value.return_type = compileType(node.value.return_type);
@@ -395,6 +413,10 @@ export const type_check = (tree: SyntaxTree) => {
               throw Errors.NotImplemented(NT.type_union);
             }
 
+            if (l_type.NT === NT.type_tuple || r_type.NT === NT.type_tuple) {
+              throw Errors.NotImplemented(NT.type_union);
+            }
+
             if (
               typeof l_type.type === 'string' ||
               typeof r_type.type === 'string'
@@ -421,6 +443,10 @@ export const type_check = (tree: SyntaxTree) => {
             const r_type = TypeHelper.getType(node.right, params);
 
             if (l_type.NT === NT.type_union || r_type.NT === NT.type_union) {
+              throw Errors.NotImplemented(NT.type_union);
+            }
+
+            if (l_type.NT === NT.type_tuple || r_type.NT === NT.type_tuple) {
               throw Errors.NotImplemented(NT.type_union);
             }
 
@@ -455,6 +481,10 @@ export const type_check = (tree: SyntaxTree) => {
             const l_type = TypeHelper.getType(node.left, params);
 
             if (r_type.NT === NT.type_union || l_type.NT === NT.type_union) {
+              throw Errors.NotImplemented(NT.type_union);
+            }
+
+            if (l_type.NT === NT.type_tuple || r_type.NT === NT.type_tuple) {
               throw Errors.NotImplemented(NT.type_union);
             }
 
@@ -494,6 +524,13 @@ export const type_check = (tree: SyntaxTree) => {
             if (
               l_type_node.NT === NT.type_union ||
               r_type_node.NT == NT.type_union
+            ) {
+              throw Errors.NotImplemented(NT.type_union);
+            }
+
+            if (
+              l_type_node.NT === NT.type_tuple ||
+              r_type_node.NT === NT.type_tuple
             ) {
               throw Errors.NotImplemented(NT.type_union);
             }
@@ -698,6 +735,9 @@ export const type_check = (tree: SyntaxTree) => {
                 if (node.left.definition.type.NT === NT.raw_type)
                   throw Errors.NotImplemented(NT.raw_type);
 
+                if (node.left.definition.type.NT === NT.type_tuple)
+                  throw Errors.NotImplemented(NT.type_tuple);
+
                 if (typeof node.left.definition.type.type === 'string') {
                   throw Errors.NotImplemented(
                     'undefined & any & unknown & void'
@@ -745,6 +785,10 @@ export const type_check = (tree: SyntaxTree) => {
               throw Errors.NotImplemented(NT.type_union);
             }
 
+            if (r_type.NT === NT.type_tuple || l_type.NT === NT.type_tuple) {
+              throw Errors.NotImplemented(NT.type_union);
+            }
+
             if (r_type.type === l_type.type) {
               return {
                 success: true,
@@ -769,6 +813,10 @@ export const type_check = (tree: SyntaxTree) => {
 
             if (type_node.NT === NT.type_union)
               throw Errors.NotImplemented(NT.type_union);
+
+            if (type_node.NT === NT.type_tuple) {
+              throw Errors.NotImplemented(NT.type_union);
+            }
 
             if (
               type_node.type === Types.float.object ||
@@ -906,7 +954,11 @@ export const type_check = (tree: SyntaxTree) => {
       case NT.statement_return: {
         if (node.parent.return_type.NT === NT.type_union) {
           if (!node.member) throw Errors.SyntaxError('Missing expression');
+
           const value_type = TypeHelper.getType(node.member, params);
+
+          if (value_type.NT === NT.type_tuple)
+            throw Errors.NotImplemented(NT.type_tuple);
 
           const type_list =
             value_type.NT === NT.type_single
@@ -941,6 +993,9 @@ export const type_check = (tree: SyntaxTree) => {
         if (node.parent.return_type.NT === NT.raw_type)
           throw Errors.NotImplemented(NT.raw_type);
 
+        if (node.parent.return_type.NT === NT.type_tuple)
+          throw Errors.NotImplemented(NT.type_tuple);
+
         // TODO: Changed != to == (code may be broken)
         if (!node.member && node.parent.return_type.type == TYPE_VOID) {
           return {
@@ -963,6 +1018,10 @@ export const type_check = (tree: SyntaxTree) => {
 
         if (value_type.NT === NT.type_union) {
           throw Errors.NotImplemented(NT.type_union);
+        }
+
+        if (value_type.NT === NT.type_tuple) {
+          throw Errors.NotImplemented(NT.type_tuple);
         }
 
         if (value_type.type !== node.parent.return_type.type) {
@@ -1008,6 +1067,10 @@ export const type_check = (tree: SyntaxTree) => {
           throw Errors.NotImplemented(NT.type_union);
         }
 
+        if (struct_type.NT === NT.type_tuple) {
+          throw Errors.NotImplemented(NT.type_tuple);
+        }
+
         return {
           success: struct_type.type == node.object.value,
           found_return: false,
@@ -1027,6 +1090,10 @@ export const type_check = (tree: SyntaxTree) => {
 
         if (expression_type.NT === NT.type_union) {
           throw Errors.NotImplemented(NT.type_union);
+        }
+
+        if (expression_type.NT === NT.type_tuple) {
+          throw Errors.NotImplemented(NT.type_tuple);
         }
 
         if (expression_type.type !== Types.integer.object)
@@ -1082,6 +1149,21 @@ export const type_check = (tree: SyntaxTree) => {
           found_return: false,
           type_constraints: undefined,
         };
+      }
+
+      case NT.special: {
+        switch (node.value) {
+          case 'dump_mem': {
+            return {
+              success: true,
+              found_return: false,
+              type_constraints: undefined,
+            };
+          }
+
+          default:
+            throw Errors.NotImplemented(node.value);
+        }
       }
 
       default: {

@@ -649,7 +649,9 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
       definition_id: undefined,
       type_check_id: undefined,
       context: curr_ctx,
-      index: undefined,
+      local_offset: undefined,
+      global_offset: undefined,
+      definition_depth: undefined,
       location: curr_tok?.loc ?? Location.std,
       type: { NT: AST.NodeType.type_single, type: TYPE_UNKNOWN },
       name: curr_tok!.val,
@@ -927,7 +929,16 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
         location: curr_tok!.loc,
         value: 'console_input',
       };
-
+      next();
+      const access_node = access(res);
+      if (access_node) return access_node;
+      return res;
+    } else if (accept(TK.keyword, ['dump_mem'])) {
+      const res: AST.SpecialNode = {
+        NT: AST.NodeType.special,
+        location: curr_tok!.loc,
+        value: 'dump_mem',
+      };
       next();
       const access_node = access(res);
       if (access_node) return access_node;
