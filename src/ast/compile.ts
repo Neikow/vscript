@@ -4,6 +4,7 @@ import { Errors } from '../errors';
 import { LanguageObjectKind } from '../objects';
 import { Types } from '../std/types';
 import {
+  ContextNode,
   ContextType,
   DefinitionNodeFunction,
   DefinitionType as DT,
@@ -66,10 +67,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
   function push(v: string, comment?: string) {
     local_stack_offset++;
     global_stack_offset++;
-    return (
-      `\t; lo: ${local_stack_offset}, go: ${global_stack_offset}\n\tpush\t${v}` +
-      (comment ? `\t; ${comment}\n` : '\n')
-    );
+    return `\tpush\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
   }
 
   function mov(v1: string, v2: string, comment?: string) {
@@ -156,22 +154,25 @@ export const compile = (tree: SyntaxTree, path: string) => {
 
   let functions = '';
 
-  let data = '\nsection .data\n';
+  let data = '';
 
-  let bss = '\nsection .bss\n';
+  let bss = '';
 
-  function parseExpression(node: Node, context_id: number): ParseResult[] {
+  function parseExpression(
+    node: Node,
+    parent_context: ContextNode
+  ): ParseResult[] {
     switch (node.NT) {
       case NT.expression: {
-        return parseExpression(node.member!, context_id);
+        return parseExpression(node.member!, parent_context);
       }
       case NT.operator: {
         switch (node.op) {
           case 'add': {
             if (!node.left || !node.right) throw Errors.ParserError();
-            const left = parseExpression(node.left, context_id);
+            const left = parseExpression(node.left, parent_context);
             if (left.length > 1) throw Errors.NotImplemented();
-            const right = parseExpression(node.right, context_id);
+            const right = parseExpression(node.right, parent_context);
             if (right.length > 1) throw Errors.NotImplemented();
 
             return [
@@ -191,9 +192,9 @@ export const compile = (tree: SyntaxTree, path: string) => {
           }
           case 'sub': {
             if (!node.left || !node.right) throw Errors.ParserError();
-            const left = parseExpression(node.left, context_id);
+            const left = parseExpression(node.left, parent_context);
             if (left.length > 1) throw Errors.NotImplemented();
-            const right = parseExpression(node.right, context_id);
+            const right = parseExpression(node.right, parent_context);
             if (right.length > 1) throw Errors.NotImplemented();
 
             return [
@@ -216,7 +217,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
             if (node.left.NT !== NT.reference)
               throw Errors.NotImplemented('non reference decr');
 
-            const val = parseExpression(node.left, context_id);
+            const val = parseExpression(node.left, parent_context);
             if (val.length > 1) throw Errors.ParserError();
 
             return [
@@ -233,7 +234,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
             if (node.left.NT !== NT.reference)
               throw Errors.NotImplemented('non reference decr');
 
-            const val = parseExpression(node.left, context_id);
+            const val = parseExpression(node.left, parent_context);
             if (val.length > 1) throw Errors.ParserError();
 
             return [
@@ -248,9 +249,9 @@ export const compile = (tree: SyntaxTree, path: string) => {
           case 'assign': {
             if (!node.left || !node.right) throw Errors.CompilerError();
 
-            const left = parseExpression(node.left, context_id);
+            const left = parseExpression(node.left, parent_context);
             if (left.length > 1) throw Errors.NotImplemented();
-            const right = parseExpression(node.right, context_id);
+            const right = parseExpression(node.right, parent_context);
             if (right.length > 1) throw Errors.NotImplemented();
 
             return [
@@ -270,9 +271,9 @@ export const compile = (tree: SyntaxTree, path: string) => {
           case 'sub_assign': {
             if (!node.left || !node.right) throw Errors.CompilerError();
 
-            const left = parseExpression(node.left, context_id);
+            const left = parseExpression(node.left, parent_context);
             if (left.length > 1) throw Errors.NotImplemented();
-            const right = parseExpression(node.right, context_id);
+            const right = parseExpression(node.right, parent_context);
             if (right.length > 1) throw Errors.NotImplemented();
 
             return [
@@ -298,9 +299,9 @@ export const compile = (tree: SyntaxTree, path: string) => {
             if (node.left.definition.DT !== DT.function)
               throw Errors.NotImplemented();
 
-            const left = parseExpression(node.left, context_id);
+            const left = parseExpression(node.left, parent_context);
             if (left.length > 1) throw Errors.CompilerError();
-            const right = parseExpression(node.right, context_id);
+            const right = parseExpression(node.right, parent_context);
 
             let before = '';
             before += left[0].before;
@@ -382,7 +383,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
 
             let address: string;
 
-            if (node.definition.context!.id === context_id) {
+            if (node.definition.context!.id === parent_context.id) {
               const current_function =
                 functions_stack[functions_stack.length - 1];
 
@@ -394,13 +395,13 @@ export const compile = (tree: SyntaxTree, path: string) => {
             } else {
               const global_arg_count = functions_stack
                 .map((v) => v.arguments.length)
-                .reduce((p, c) => p + c);
+                .reduce((p, c) => p + c, 0);
               const depth =
                 functions_stack.length - node.definition.definition_depth;
-              const global_offset = offsets_stack.reduce((p, c) => p + c);
+              const global_offset = offsets_stack.reduce((p, c) => p + c, 0);
 
               address = `[ebp + ${
-                1 +
+                (parent_context.type === ContextType.function ? 1 : 0) +
                 global_arg_count +
                 depth +
                 global_offset -
@@ -423,7 +424,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
       case NT.expression_list: {
         let res: ParseResult[] = [];
         for (const member of node.members) {
-          let list_member = parseExpression(member, context_id);
+          let list_member = parseExpression(member, parent_context);
           if (list_member.length > 1)
             throw Errors.NotImplemented('Nested lists');
           res.push(list_member[0]);
@@ -498,7 +499,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
     node: ExpressionListNode | ExpressionNode,
     label_success: string,
     label_fail: string,
-    context_id: number
+    parent_context: ContextNode
   ): ParseResult {
     if (node.NT === NT.expression_list)
       throw Errors.NotImplemented(NT.expression_list);
@@ -522,8 +523,17 @@ export const compile = (tree: SyntaxTree, path: string) => {
           };
         }
         case NT.reference: {
-          const res = parseExpression(node, context_id);
+          const res = parseExpression(node, parent_context);
           if (res.length > 1) throw Errors.CompilerError();
+
+          if (depth < 2) {
+            return {
+              before: res[0].before,
+              middle: cmp(res[0].middle, '0') + je(label_fail),
+              after: '',
+              on_update: res[0].on_update,
+            };
+          }
 
           return {
             before: res[0].before,
@@ -728,7 +738,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
       push('ebp') +
       mov('ebp', 'esp', 'saves the function base pointer') +
       '\n' +
-      aux(node.value.context!, node.value.context!.id) +
+      aux(node.value.context!, node.value.context!) +
       (!node.value.has_return
         ? aux(
             {
@@ -737,7 +747,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
               member: undefined,
               parent: node.value,
             },
-            node.value.context!.id
+            node.value.context!
           )
         : '');
 
@@ -750,12 +760,12 @@ export const compile = (tree: SyntaxTree, path: string) => {
     functions += func;
   }
 
-  function aux(node: Node, context_id: number): string {
+  function aux(node: Node, parent_context: ContextNode): string {
     let code = '';
     switch (node.NT) {
       case NT.context: {
         for (const child of node.members) {
-          code += aux(child, node.id);
+          code += aux(child, node);
         }
         return code;
       }
@@ -767,13 +777,17 @@ export const compile = (tree: SyntaxTree, path: string) => {
           }
           case DT.var: {
             if (!node.value) throw Errors.NotImplemented();
-            let value = parseExpression(node.value, context_id);
+            let value = parseExpression(node.value, parent_context);
             if (value.length > 1) throw Errors.NotImplemented('tuples');
 
             if (node.type_check_id === undefined)
               throw Errors.CompilerError(`${node.name} has no type_check_id`);
 
-            code += value[0].before + push(value[0].middle) + value[0].after;
+            code +=
+              value[0].before +
+              push(value[0].middle, `(${node.name})`) +
+              value[0].after +
+              '\n';
 
             node.global_offset = global_stack_offset;
             node.local_offset = local_stack_offset;
@@ -794,13 +808,16 @@ export const compile = (tree: SyntaxTree, path: string) => {
           if (!node.member || node.member.NT !== NT.expression_list)
             throw Errors.CompilerError();
 
+          code += '\t; statement_debug (tuple)\n';
+
           for (let i = 0; i < type_node.types.length - 1; i++) {
             if (type_node.types[i].NT !== NT.type_single)
               throw Errors.NotImplemented(type_node.types[i].NT);
             code += print_value(
               node.member.members[i],
               <SingleTypeNode>type_node.types[i],
-              context_id,
+              parent_context,
+              false,
               false
             );
             code += print_value(
@@ -811,7 +828,8 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 value_type: Types.string.object,
               },
               { NT: NT.type_single, type: Types.string.object },
-              context_id,
+              parent_context,
+              false,
               false
             );
           }
@@ -824,8 +842,9 @@ export const compile = (tree: SyntaxTree, path: string) => {
           code += print_value(
             node.member.members[type_node.types.length - 1],
             <SingleTypeNode>type_node.types[type_node.types.length - 1],
-            context_id,
-            true
+            parent_context,
+            true,
+            false
           );
 
           return code;
@@ -836,7 +855,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
         if (type_node.type.kind === LanguageObjectKind.instance)
           throw Errors.NotImplemented(LanguageObjectKind.instance);
 
-        code += print_value(node.member!, type_node, context_id);
+        code += print_value(node.member!, type_node, parent_context);
 
         return code;
       }
@@ -865,7 +884,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
           return code;
         }
 
-        const value = parseExpression(node.member!, context_id);
+        const value = parseExpression(node.member!, parent_context);
 
         if (value.length > 1) throw Errors.NotImplemented('tuple');
         const { before, middle, after } = value[0];
@@ -892,7 +911,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
         return code;
       }
       case NT.expression: {
-        const val = parseExpression(node, context_id);
+        const val = parseExpression(node, parent_context);
 
         if (val.length > 1) throw Errors.NotImplemented('tuples');
 
@@ -908,13 +927,13 @@ export const compile = (tree: SyntaxTree, path: string) => {
 
         if (!node.child) throw Errors.CompilerError();
         if (!node.condition) throw Errors.CompilerError();
-        const body = aux(node.child, node.child.id);
+        const body = aux(node.child, node.child);
 
         const condition = parseCondition(
           node.condition,
           label_success,
           label_fail,
-          node.child.id
+          parent_context
         );
 
         code +=
@@ -953,7 +972,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
             branch.condition,
             label_success,
             label_fail,
-            branch.child.id
+            parent_context
           );
 
           code +=
@@ -961,8 +980,8 @@ export const compile = (tree: SyntaxTree, path: string) => {
             `\t; condition\n` +
             condition.before +
             condition.middle +
-            '\t; body\n' +
-            aux(branch.child, branch.child.id) +
+            '\n\t; body\n' +
+            aux(branch.child, branch.child) +
             jmp(`if_else_${statement_idx}_end`);
         }
 
@@ -971,7 +990,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
           code +=
             `\nif_else_${statement_idx}_def:\n` +
             '\t; body\n' +
-            aux(node.default.child, node.default.child.id);
+            aux(node.default.child, node.default.child);
         }
 
         code += `if_else_${statement_idx}_end:\n`;
@@ -984,22 +1003,29 @@ export const compile = (tree: SyntaxTree, path: string) => {
     }
   }
 
-  text += aux(tree.root, tree.root.id);
+  text += aux(tree.root, tree.root);
   text += mov('ebx', '0', 'exit code') + call('_exit');
 
-  writeFileSync(path, base + text + functions + data + bss);
+  writeFileSync(
+    path,
+    base +
+      text +
+      functions +
+      (data === '' ? '' : '\nsection .data\n' + data) +
+      (bss === '' ? '' : '\nsection .data\n' + bss)
+  );
 
   function print_value(
     node: Node,
     type_node: SingleTypeNode,
-    context_id: number,
+    parent_context: ContextNode,
     line_feed: boolean = true,
     comment: boolean = true
   ) {
     let code = '';
     switch (type_node.type) {
       case Types.integer.object: {
-        const res = parseExpression(node, context_id);
+        const res = parseExpression(node, parent_context);
         if (res.length > 1) throw Errors.NotImplemented('tuples');
 
         const { before, middle, after } = res[0];
@@ -1007,16 +1033,17 @@ export const compile = (tree: SyntaxTree, path: string) => {
         if (middle === '') throw Errors.CompilerError('Missing value to log');
 
         code +=
-          (comment ? `\t; statement_debug (int)\n` : false) +
+          (comment ? `\t; statement_debug (int)\n` : '') +
           before +
           mov('eax', middle) +
           call(line_feed ? 'iprintLF' : 'iprint') +
-          after;
+          after +
+          '\n';
 
         return code;
       }
       case Types.string.object: {
-        const res = parseExpression(node, context_id);
+        const res = parseExpression(node, parent_context);
         if (res.length > 1) throw Errors.NotImplemented('tuples');
 
         const { before, middle, after } = res[0];
@@ -1024,11 +1051,12 @@ export const compile = (tree: SyntaxTree, path: string) => {
         if (middle === '') throw Errors.CompilerError('Missing value to log');
 
         code +=
-          (comment ? `\t; statement_debug (str)\n` : false) +
+          (comment ? `\t; statement_debug (str)\n` : '') +
           before +
           mov('eax', middle) +
           call(line_feed ? 'sprintLF' : 'sprint') +
-          after;
+          after +
+          '\n';
 
         return code;
       }

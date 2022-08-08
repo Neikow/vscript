@@ -1,2 +1,9 @@
-let z = 10;
-debug 'z', z;
+let x = 10;
+
+if x do {
+  let z = 100;
+
+  debug x + z;
+} else {
+  debug 'b';
+}
