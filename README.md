@@ -9,11 +9,13 @@ The format is similar to TypeScript in many aspects.
 
 ## Roadmap
 - [ ] [Turing Complete](https://en.wikipedia.org/wiki/Turing_completeness)
-- [ ] Objects
+- [ ] Memory Management
 - [ ] Self-Hosting
 
 ## Syntax
-Here a brief list of the language capabilities.
+Here a brief list of the language current or planned capabilities.
+As the project is a work in progress, this section and the different syntaxes are subject to change.
+
 #### Variables and constants
 Like any modern programing language, V-Script supports declaring scoped variables. 
 ```ts
@@ -78,7 +80,7 @@ switch val {
 }
 ```
 
-##### [WIP] `goto`
+#####  [WIP] `goto`
 Not yet implemented.
 ```ts
 label my_label;
@@ -133,19 +135,30 @@ obj Object [ param1: type, param2: type ] <T, Y> ( parent1, parent2, ... ) : {
 
 
 
-## Running my code
+## ⏩ Running
 I am using [Arch WSL](https://github.com/yuk7/ArchWSL) for the developement, you may need to change the way Linux ASM compiler is ran on your side.
 
-- `npm start`: Executes the code with the TypeScript interpreter.
+### 💻 Interpreter
+- `npm start`: Interprets the code using the TypeScript implementation.
 
-- `npm run compile`: Compiles `asm.asm` to machine code.
+### 👩‍💻 Assembly
+- `npm run exec [args]`: Runs the executable without recompiling.
 
-- `npm run run`: Runs the machine code without recompiling (arguments may be passed to the program).
+- `npm run compile`: Compiles the assembly file `asm/asm.asm` to an executable.
 
-- `npm run build`: Builds `src/main.vsc` to machine code without running.
+- `npm run compile:exec [args]`: Compiles and runs the executable.
 
-- `npm run build:run`: Builds `src/main.vsc` and runs it.
+- `npm run assemble`: Builds `src/main.vsc` to an executable without running.
+
+- `npm run assemble:exec [args]`: Builds `src/main.vsc` and runs it.
+
+### 🧪 Testing
+- `npm run test:new`: Creates a new test from the current `src/main.vsc` recompilation.
+
+- `npm run test <test_name>`: Run a unit test.
+
+- `npm run test:all`: Runs all the unit tests inside `tests`.
 
 
-
-## VSCode Extension
+## 🧩 VSCode Extension
+The VSCode extension inside the `extension` directory provides syntax hilighting for `.vsc` and `.test` files.

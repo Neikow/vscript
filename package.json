@@ -6,11 +6,11 @@
     "test": "ts-node ./src/index.ts --test \"$@\"",
     "test:all": "ts-node ./src/index.ts --test-all \"$@\"",
     "test:new": "ts-node ./src/index.ts --test-new",
-    "run": "arch runp \"./asm/asm\" \"$@[2,-1]\"",
+    "exec": "arch runp \"./asm/asm\" \"$@[2,-1]\"",
     "compile": "cd asm && arch runp nasm -felf \"./asm.asm\" && arch runp ld -m elf_i386 \"./asm.o\" -o \"./asm\" && arch runp rm \"./asm.o\" && cd ..",
-    "compile:run": "npm run compile && npm run run",
-    "build": "ts-node ./src/index.ts --build src/main.vsc && npm run compile",
-    "build:run": "ts-node ./src/index.ts --build src/main.vsc && npm run compile:run"
+    "compile:exec": "npm run compile && npm run exec",
+    "assemble": "ts-node ./src/index.ts --build src/main.vsc",
+    "assemble:exec": "ts-node ./src/index.ts --build src/main.vsc && npm run compile:exec"
   },
   "devDependencies": {
     "@types/node": "^17.0.35",
