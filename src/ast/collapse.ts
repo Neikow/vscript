@@ -8,8 +8,8 @@ import {
   DefinitionType as DT,
   Node,
   NodeType as NT,
-} from '../syntax_tree_nodes';
-import { TYPE_ANY, TYPE_UNKNOWN } from '../types';
+} from './nodes';
+import { TYPE_ANY, TYPE_UNKNOWN } from '../types/types';
 
 export const collapse = (syntaxTree: ContextNode): ContextNode => {
   function recurse(node: Node | undefined): Node | undefined {

@@ -1,18 +1,18 @@
-import { LanguageDefinition } from '../../definitions';
-import { LanguageObject, LanguageObjectKind } from '../../objects';
+import { LanguageObject, LanguageObjectKind } from '../../types/objects';
 import {
   ContextType,
   FunctionValueNode,
+  LanguageDefinition,
   NodeType,
-} from '../../syntax_tree_nodes';
+} from '../../ast/nodes';
 import {
   TYPE_BOOLEAN,
   Location,
   TYPE_FUNCTION,
   TYPE_ANY,
   VSCType,
-} from '../../types';
-import TypeHelper from '../../type_helper';
+} from '../../types/types';
+import TypeHelper from '../../types/helper';
 import VSCTypeFun from './fun';
 class VSCTypeBool implements VSCType {
   display: string = 'bool';

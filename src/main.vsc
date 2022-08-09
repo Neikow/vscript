@@ -15,15 +15,19 @@ struct Player {
 }
 
 let player = Player{
+  name: 'Bob',
   pos: Position{
-    x: 11,
+    x: 10,
     y: 5,
   },
   vel: Velocity{
     x: 1,
     y: 2,
   }
-  name: 'Bob',
 };
+
+debug player;
+
+player.pos.x = 4;
 
 debug player;

@@ -1,9 +1,4 @@
-import {
-  LanguageObject,
-  LanguageObjectKind,
-  ObjectProperty,
-  PropertyKind,
-} from '../../types/objects';
+import { LanguageObject, LanguageObjectKind } from '../../types/objects';
 import {
   ContextType,
   FunctionValueNode,
@@ -13,25 +8,9 @@ import {
 import { Location, TYPE_ANY, VSCType } from '../../types/types';
 
 import VSCTypeFun from './fun';
-import VSCTypeUInt from './uint';
 
-class VSCTypeStr implements VSCType {
-  display: string = 'str';
-
-  _type_properties: { [key: string]: ObjectProperty } = {
-    length: {
-      kind: PropertyKind.value,
-      location: Location.std,
-      index: 0,
-      size: 0,
-      name: 'length',
-      optional: false,
-      type: {
-        NT: NodeType.type_single,
-        type: VSCTypeUInt.object,
-      },
-    },
-  };
+class VSCTypeUInt implements VSCType {
+  display: string = 'uint';
 
   object: LanguageObject = {
     NT: NodeType.language_object,
@@ -41,9 +20,7 @@ class VSCTypeStr implements VSCType {
     location: Location.std,
     is_struct: false,
     mutable: false,
-    properties: new Map<string, ObjectProperty>(
-      Object.entries(this._type_properties)
-    ),
+    properties: undefined,
     builtin_reference: this,
     parameters: {
       template_types: undefined,
@@ -63,7 +40,6 @@ class VSCTypeStr implements VSCType {
           is_optional: true,
           location: Location.std,
           name: 'o',
-
           type: {
             NT: NodeType.type_single,
             type: TYPE_ANY,
@@ -71,7 +47,7 @@ class VSCTypeStr implements VSCType {
         },
       ],
       type_arguments: [],
-      name: 'str',
+      name: 'uint',
       context: {
         definitions: new Map<string, LanguageDefinition>(),
         holder: undefined,
@@ -81,7 +57,7 @@ class VSCTypeStr implements VSCType {
         objects: new Map<string, LanguageObject>(),
         parent: undefined,
         type: ContextType.std,
-        label: 'constructor::str',
+        label: 'constructor::uint32',
       },
       location: Location.std,
       NT: NodeType.function,
@@ -94,4 +70,4 @@ class VSCTypeStr implements VSCType {
   };
 }
 
-export default new VSCTypeStr();
+export default new VSCTypeUInt();

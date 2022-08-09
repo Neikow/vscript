@@ -1,18 +1,11 @@
-import { LanguageDefinition } from '../../definitions';
-import { LanguageObject, LanguageObjectKind } from '../../objects';
+import { LanguageObject, LanguageObjectKind } from '../../types/objects';
 import {
   ContextType,
   FunctionValueNode,
+  LanguageDefinition,
   NodeType,
-} from '../../syntax_tree_nodes';
-import {
-  Location,
-  TYPE_FUNCTION,
-  TYPE_ANY,
-  VSCType,
-  TYPE_INTEGER,
-} from '../../types';
-import TypeHelper from '../../type_helper';
+} from '../../ast/nodes';
+import { Location, TYPE_ANY, VSCType } from '../../types/types';
 
 import VSCTypeFun from './fun';
 
@@ -64,7 +57,7 @@ class VSCTypeInt implements VSCType {
         objects: new Map<string, LanguageObject>(),
         parent: undefined,
         type: ContextType.std,
-        label: 'constructor::int',
+        label: 'constructor::int32',
       },
       location: Location.std,
       NT: NodeType.function,

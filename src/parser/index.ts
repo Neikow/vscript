@@ -1,15 +1,14 @@
 import chalk from 'chalk';
 import { inspect } from 'util';
-import { LanguageDefinition } from '../definitions';
 import { Errors } from '../errors';
 import {
   LanguageObject,
   LanguageObjectKind,
   ObjectProperty,
   PropertyKind as PK,
-} from '../objects';
+} from '../types/objects';
 import { Types } from '../std/types';
-import * as AST from '../syntax_tree_nodes';
+import * as AST from '../ast/nodes';
 import {
   FALSE,
   KEYWORD,
@@ -28,7 +27,7 @@ import {
   TYPE_UNKNOWN,
   TYPE_VOID,
   UNDEFINED,
-} from '../types';
+} from '../types/types';
 
 export function getDefinitionNode(
   context: AST.ContextNode,
@@ -368,7 +367,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
         mutated: false,
         definition_id: undefined,
         type_check_id: undefined,
-        type: { NT: AST.NodeType.type_single, type: Types.function.object },
+        type: { NT: AST.NodeType.type_single, type: Types.fun.object },
       };
 
       const parent = context_stack.pop();
@@ -381,7 +380,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
       curr_ctx.definitions.set(curr_node.name, {
         child_type: {
           NT: AST.NodeType.type_single,
-          type: Types.function.object,
+          type: Types.fun.object,
         },
         location: curr_node.location,
         mutated: false,
@@ -517,7 +516,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
     newNode({
       NT: AST.NodeType.context,
       id: ctx_id++,
-      definitions: new Map<string, LanguageDefinition>(),
+      definitions: new Map<string, AST.LanguageDefinition>(),
       objects: new Map<string, LanguageObject>(),
       members: [],
       holder: undefined,
@@ -595,9 +594,9 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
       accept(TK.keyword, ['str', 'int', 'flt', 'ptr', 'bool', 'any'])
     ) {
       const type_map = {
-        bool: Types.boolean.object,
+        bool: Types.bool.object,
         str: Types.string.object,
-        int: Types.integer.object,
+        int: Types.uint.object,
         flt: Types.float.object,
       };
 
@@ -837,7 +836,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
         location: curr_tok!.loc,
         value_type:
           curr_tok!.kind == TK.literal_number_int
-            ? Types.integer.object
+            ? Types.uint.object
             : Types.float.object,
         value: curr_tok!.val,
       };
@@ -872,7 +871,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
             NT: AST.NodeType.literal_boolean,
             location: curr_tok!.loc,
             value: curr_tok!.val == 'true' ? 1 : 0,
-            value_type: Types.boolean.object,
+            value_type: Types.bool.object,
           };
           next();
 
@@ -949,8 +948,8 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
       return res;
     } else if (accept(TK.keyword, ['bool', 'int', 'str', 'flt', 'ptr'])) {
       const type_map = {
-        bool: Types.boolean,
-        int: Types.integer,
+        bool: Types.bool,
+        int: Types.uint,
         flt: Types.float,
         str: Types.string,
         ptr: Types.pointer,

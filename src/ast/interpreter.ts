@@ -1,8 +1,8 @@
 import chalk from 'chalk';
 import { SyntaxTree } from '.';
 import { Errors } from '../errors';
-import { Memory } from '../memory';
-import { LanguageObject, LanguageObjectKind } from '../objects';
+import { Memory } from '../interpreter/memory';
+import { LanguageObject, LanguageObjectKind } from '../types/objects';
 import { Types } from '../std/types';
 import {
   ContextNode,
@@ -10,14 +10,14 @@ import {
   SingleTypeNode,
   StatementLabelNode,
   ValueNode,
-} from '../syntax_tree_nodes';
-import { INFINITY, NAN, NULL } from '../types';
+} from './nodes';
+import { INFINITY, NAN, NULL } from '../types/types';
 
 /**
  * Travels through the tree and executing the program.
  */
 
-export const execute = (tree: SyntaxTree) => {
+export const interpreter = (tree: SyntaxTree) => {
   const mem = new Memory(execute_aux);
 
   function formatType(node: ValueNode, indent: number = 0): string {
@@ -89,7 +89,7 @@ export const execute = (tree: SyntaxTree) => {
             chalk.green(`${node.value.location.format()}`),
           -1,
         ];
-      } else if (node.value_type === Types.boolean.object) {
+      } else if (node.value_type === Types.bool.object) {
         if (node.value == 1) {
           return [chalk.magentaBright('true'), -1];
         } else {
@@ -97,7 +97,7 @@ export const execute = (tree: SyntaxTree) => {
         }
       } else if (
         node.value_type === Types.float.object ||
-        node.value_type === Types.integer.object
+        node.value_type === Types.uint.object
       ) {
         return [chalk.blueBright(node.value), -1];
       } else if (node.value_type === Types.string.object) {

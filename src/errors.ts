@@ -1,7 +1,7 @@
 import chalk from 'chalk';
-import { TypeNode } from './syntax_tree_nodes';
-import { Location, Token } from './types';
-import TypeHelper from './type_helper';
+import { TypeNode } from './ast/nodes';
+import { Location, Token } from './types/types';
+import TypeHelper from './types/helper';
 
 const error = chalk.redBright;
 

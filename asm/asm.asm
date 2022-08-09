@@ -19,7 +19,7 @@ _start:
 	mov		eax, esp	; save struct base pointer
 	sub		eax, 4
 	push	_s0
-	push	11
+	push	10
 	push	5
 	push	1
 	push	2
@@ -27,6 +27,76 @@ _start:
 
 	; statement_debug (struct)
 	push	ebx
+	mov		eax, [ebp - 7 * 4]	; (player)
+	mov		ebx, eax
+	mov		eax, _s1
+	call	sprint
+	mov		eax, _s2
+	call	sprintLF
+	mov		eax, _s3
+	call	sprint
+	mov		eax, _s4
+	call	sprint
+	mov		eax, [ebx - 0]
+	call	sprintLF
+	mov		eax, _s5
+	call	sprint
+	mov		eax, _s4
+	call	sprint
+	mov		eax, _s6
+	call	sprint
+	mov		eax, _s2
+	call	sprintLF
+	mov		eax, _s7
+	call	sprint
+	mov		eax, _s4
+	call	sprint
+	mov		eax, [ebx - 4]
+	call	iprintLF
+	mov		eax, _s8
+	call	sprint
+	mov		eax, _s4
+	call	sprint
+	mov		eax, [ebx - 8]
+	call	iprintLF
+	mov		eax, _s9
+	call	sprintLF
+	mov		eax, _s10
+	call	sprint
+	mov		eax, _s4
+	call	sprint
+	mov		eax, _s11
+	call	sprint
+	mov		eax, _s2
+	call	sprintLF
+	mov		eax, _s7
+	call	sprint
+	mov		eax, _s4
+	call	sprint
+	mov		eax, [ebx - 12]
+	call	iprintLF
+	mov		eax, _s8
+	call	sprint
+	mov		eax, _s4
+	call	sprint
+	mov		eax, [ebx - 16]
+	call	iprintLF
+	mov		eax, _s9
+	call	sprintLF
+	mov		eax, _s12
+	call	sprintLF
+	pop		ebx
+
+	; op assign
+	mov		eax, 4
+	push	ebx
+	mov		ebx, [ebp - 7 * 4]	; struct address
+	mov		[ebx - 4], eax
+	pop		ebx
+
+	; statement_debug (struct)
+	push	ebx
+	mov		eax, [ebp - 7 * 4]	; (player)
 	mov		ebx, eax
 	mov		eax, _s1
 	call	sprint

@@ -1,15 +1,15 @@
-import { lex } from '../lexer';
 import { parse } from '../parser/index';
 import {
   ContextNode,
   ContextType, NodeType as NT
-} from '../syntax_tree_nodes';
+} from './nodes';
 
 
-import { compile } from './compile';
+import { lexer } from '../lexer';
 import { collapse } from './collapse';
-import { execute } from './execute';
-import { type_check } from './type_check';
+import { compiler } from './compiler';
+import { interpreter } from './interpreter';
+import { typeChecker } from './type_check';
 
 export class SyntaxTree {
   root: ContextNode;
@@ -18,7 +18,7 @@ export class SyntaxTree {
   type_checked = false;
 
   constructor(file: string, body: string) {
-    const tokens = lex(file, body);
+    const tokens = lexer(file, body);
 
     const context = parse(tokens, {
       NT: NT.context,
@@ -44,15 +44,15 @@ export class SyntaxTree {
 
   type_check(): boolean {
     if (this.type_checked) return true;
-    this.type_checked = type_check(this).success;
+    this.type_checked = typeChecker(this).success;
     return this.type_checked;
   }
 
   execute() {
-    execute(this);
+    interpreter(this);
   }
 
   compile(path: string) {
-    compile(this, path);
+    compiler(this, path);
   }
 }

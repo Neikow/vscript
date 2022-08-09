@@ -5,7 +5,7 @@ import {
   NodeType as NT,
   TrueNode,
   ValueNode,
-} from './syntax_tree_nodes';
+} from '../ast/nodes';
 import {
   INFINITY,
   Location,
@@ -14,22 +14,21 @@ import {
   NULL,
   TYPE_ANY,
   TYPE_UNKNOWN,
-  TYPE_INTEGER,
   UNDEFINED,
   TYPE_UNDEFINED,
-} from './types';
-import { Errors } from './errors';
+} from '../types/types';
+import { Errors } from '../errors';
 
-import VSCTypeBool from './std/types/bool';
-import VSCTypeFun from './std/types/fun';
-import VSCTypeInt from './std/types/int';
-import VSCTypeFlt from './std/types/flt';
-import VSCTypeStr from './std/types/str';
-import VSCTypePtr from './std/types/ptr';
-import VSCTypeArr from './std/types/arr';
+import VSCTypeBool from '../std/types/bool';
+import VSCTypeFun from '../std/types/fun';
+import VSCTypeUInt from '../std/types/uint';
+import VSCTypeFlt from '../std/types/flt';
+import VSCTypeStr from '../std/types/str';
+import VSCTypePtr from '../std/types/ptr';
+import VSCTypeArr from '../std/types/arr';
 import readline from 'readline-sync';
-import { LanguageObjectKind, PropertyKind } from './objects';
-import TypeHelper from './type_helper';
+import { LanguageObjectKind, PropertyKind } from '../types/objects';
+import TypeHelper from '../types/helper';
 
 type OPERANDS = [ValueNode[] | undefined, ValueNode[] | undefined];
 
@@ -123,10 +122,10 @@ function access_computed(operands: OPERANDS, mem: Memory): ValueNode[] {
     if (args[0].NT !== NT.value_num)
       throw Errors.NotImplemented('non number access');
 
-    if (args[0].value_type !== VSCTypeInt.object)
+    if (args[0].value_type !== VSCTypeUInt.object)
       throw Errors.TypeError(
         args[0].location,
-        { NT: NT.type_single, type: VSCTypeInt.object,  },
+        { NT: NT.type_single, type: VSCTypeUInt.object,  },
         { NT: NT.type_single, type: args[0].value_type,  }
       );
 
@@ -219,7 +218,7 @@ function access_property(operands: OPERANDS, mem: Memory): ValueNode[] {
         return [
           {
             NT: NT.value_num,
-            value_type: VSCTypeInt.object,
+            value_type: VSCTypeUInt.object,
             is_builtin: false,
             location: Location.computed,
             value: (target.value as string).length,
@@ -235,7 +234,7 @@ function access_property(operands: OPERANDS, mem: Memory): ValueNode[] {
         return [
           {
             NT: NT.value_num,
-            value_type: VSCTypeInt.object,
+            value_type: VSCTypeUInt.object,
             is_builtin: false,
             location: Location.computed,
             value: (target.value as Array<ValueNode>).length,
@@ -334,7 +333,7 @@ function access_call(operands: OPERANDS, mem: Memory): ValueNode[] {
     if (callable.value === TYPE_ANY || callable.value === TYPE_UNKNOWN)
       throw Errors.NotImplemented('any and unknown');
 
-    if (callable.value === VSCTypeInt.object) {
+    if (callable.value === VSCTypeUInt.object) {
       if (args[0].NT === NT.value_str) {
         const val = parseInt(args[0].value);
         if (isNaN(val)) {
@@ -343,7 +342,7 @@ function access_call(operands: OPERANDS, mem: Memory): ValueNode[] {
               NT: NT.value_num,
               is_builtin: true,
               location: Location.computed,
-              value_type: VSCTypeInt.object,
+              value_type: VSCTypeUInt.object,
               value: NAN,
               
             },
@@ -354,7 +353,7 @@ function access_call(operands: OPERANDS, mem: Memory): ValueNode[] {
               NT: NT.value_num,
               is_builtin: false,
               location: Location.computed,
-              value_type: VSCTypeInt.object,
+              value_type: VSCTypeUInt.object,
               value: val,
               
             },
@@ -366,7 +365,7 @@ function access_call(operands: OPERANDS, mem: Memory): ValueNode[] {
             NT: NT.value_num,
             is_builtin: false,
             location: Location.computed,
-            value_type: VSCTypeInt.object,
+            value_type: VSCTypeUInt.object,
             value: args[0].value,
             
           },
@@ -504,7 +503,7 @@ function cast(operands: OPERANDS): ValueNode[] {
       return [object];
     } else if (
       object.value_type === VSCTypeFlt.object ||
-      object.value_type === VSCTypeInt.object
+      object.value_type === VSCTypeUInt.object
     ) {
       return [object.value == 0 ? FalseNode : TrueNode];
     } else if (object.value_type === VSCTypeStr.object) {
@@ -550,7 +549,7 @@ function leq(operands: OPERANDS): ValueNode[] {
 
   if (
     left.value_type == VSCTypeFlt.object ||
-    left.value_type == VSCTypeInt.object
+    left.value_type == VSCTypeUInt.object
   ) {
     if (typeof left.value === 'string' || typeof right.value === 'string')
       throw Errors.ParserError('Not implemented');
@@ -586,7 +585,7 @@ function lt(operands: OPERANDS): ValueNode[] {
 
   if (
     left.value_type == VSCTypeFlt.object ||
-    left.value_type == VSCTypeInt.object
+    left.value_type == VSCTypeUInt.object
   ) {
     if (typeof left.value === 'string' || typeof right.value === 'string')
       throw Errors.ParserError('Not implemented');
@@ -622,7 +621,7 @@ function gt(operands: OPERANDS): ValueNode[] {
 
   if (
     left.value_type == VSCTypeFlt.object ||
-    left.value_type == VSCTypeInt.object
+    left.value_type == VSCTypeUInt.object
   ) {
     if (typeof left.value === 'string' || typeof right.value === 'string')
       throw Errors.ParserError('Not implemented');
@@ -731,7 +730,7 @@ function mod(operands: OPERANDS): ValueNode[] {
           is_builtin: true,
           location: Location.computed,
           value: 0,
-          value_type: VSCTypeInt.object,
+          value_type: VSCTypeUInt.object,
           
         },
       ];
@@ -744,7 +743,7 @@ function mod(operands: OPERANDS): ValueNode[] {
         is_builtin: false,
         location: Location.computed,
         value: value,
-        value_type: VSCTypeInt.object,
+        value_type: VSCTypeUInt.object,
         
       },
     ];
@@ -773,7 +772,7 @@ function wdiv(operands: OPERANDS): ValueNode[] {
 
   if (
     left.value_type == VSCTypeFlt.object ||
-    left.value_type == VSCTypeInt.object
+    left.value_type == VSCTypeUInt.object
   ) {
     if (right.value_type == VSCTypeFun.object)
       throw Errors.ParserError('Not implemented.');
@@ -791,7 +790,7 @@ function wdiv(operands: OPERANDS): ValueNode[] {
         is_builtin: false,
         location: Location.computed,
         value: value,
-        value_type: VSCTypeInt.object,
+        value_type: VSCTypeUInt.object,
         
       },
     ];
@@ -820,7 +819,7 @@ function div(operands: OPERANDS): ValueNode[] {
 
   if (
     left.value_type == VSCTypeFlt.object ||
-    left.value_type == VSCTypeInt.object
+    left.value_type == VSCTypeUInt.object
   ) {
     if (right.value_type == VSCTypeFun.object)
       throw Errors.ParserError('Not implemented.');
@@ -867,7 +866,7 @@ function pow(operands: OPERANDS): ValueNode[] {
 
   if (
     left.value_type == VSCTypeFlt.object ||
-    left.value_type == VSCTypeInt.object
+    left.value_type == VSCTypeUInt.object
   ) {
     if (right.value_type == VSCTypeFun.object)
       throw Errors.ParserError('Not implemented.');
@@ -881,7 +880,7 @@ function pow(operands: OPERANDS): ValueNode[] {
       left.value_type === VSCTypeFlt.object ||
       right.value_type === VSCTypeFlt.object
         ? VSCTypeFlt.object
-        : VSCTypeInt.object;
+        : VSCTypeUInt.object;
 
     return [
       {
@@ -913,7 +912,7 @@ function mul(operands: OPERANDS): ValueNode[] {
 
   if (
     left.value_type === VSCTypeStr.object &&
-    right.value_type == VSCTypeInt.object
+    right.value_type == VSCTypeUInt.object
   ) {
     let value = '';
 
@@ -940,7 +939,7 @@ function mul(operands: OPERANDS): ValueNode[] {
 
   if (
     left.value_type == VSCTypeFlt.object ||
-    left.value_type == VSCTypeInt.object
+    left.value_type == VSCTypeUInt.object
   ) {
     if (right.value_type == VSCTypeFun.object)
       throw Errors.ParserError('Not implemented.');
@@ -954,7 +953,7 @@ function mul(operands: OPERANDS): ValueNode[] {
       left.value_type === VSCTypeFlt.object ||
       right.value_type === VSCTypeFlt.object
         ? VSCTypeFlt.object
-        : VSCTypeInt.object;
+        : VSCTypeUInt.object;
 
     return [
       {
@@ -987,7 +986,7 @@ function usub(operands: OPERANDS): ValueNode[] {
 
   if (
     (right.value_type === VSCTypeFlt.object ||
-      right.value_type === VSCTypeInt.object) &&
+      right.value_type === VSCTypeUInt.object) &&
     right.NT === NT.value_num
   ) {
     if (right.value === NAN) return [{ ...right }];
@@ -1043,7 +1042,7 @@ function add(operands: OPERANDS): ValueNode[] {
 
   if (
     left.value_type == VSCTypeFlt.object ||
-    left.value_type == VSCTypeInt.object
+    left.value_type == VSCTypeUInt.object
   ) {
     if (right.value_type == VSCTypeFun.object)
       throw Errors.ParserError('Not implemented.');
@@ -1057,7 +1056,7 @@ function add(operands: OPERANDS): ValueNode[] {
       left.value_type === VSCTypeFlt.object ||
       right.value_type === VSCTypeFlt.object
         ? VSCTypeFlt.object
-        : VSCTypeInt.object;
+        : VSCTypeUInt.object;
 
     return [
       {
@@ -1094,7 +1093,7 @@ function sub(operands: OPERANDS): ValueNode[] {
 
   if (
     left.value_type == VSCTypeFlt.object ||
-    left.value_type == VSCTypeInt.object
+    left.value_type == VSCTypeUInt.object
   ) {
     if (right.value_type == VSCTypeFun.object)
       throw Errors.ParserError('Not implemented.');
@@ -1108,7 +1107,7 @@ function sub(operands: OPERANDS): ValueNode[] {
       left.value_type === VSCTypeFlt.object ||
       right.value_type === VSCTypeFlt.object
         ? VSCTypeFlt.object
-        : VSCTypeInt.object;
+        : VSCTypeUInt.object;
 
     return [
       {

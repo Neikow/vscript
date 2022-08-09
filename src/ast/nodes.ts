@@ -1,5 +1,4 @@
-import { LanguageDefinition } from './definitions';
-import { LanguageObject, LanguageObjectInstance } from './objects';
+import { LanguageObject, LanguageObjectInstance } from '../types/objects';
 import {
   INFINITY,
   KEYWORD,
@@ -14,9 +13,9 @@ import {
   TYPE_VOID,
   UNDEFINED,
   VSCType,
-} from './types';
+} from '../types/types';
 
-import VSCTypeBool from './std/types/bool';
+import VSCTypeBool from '../std/types/bool';
 
 export const enum NodeType {
   context = 'context',
@@ -661,4 +660,12 @@ export interface StatementForInNode extends NodeBase {
   enumerable: ExpressionListNode;
   variables: string[];
   parent: ContextNode;
+}
+
+export interface LanguageDefinition {
+  node: DefinitionNode;
+  child_type: TypeNode | RawTypeNode;
+  name: string;
+  mutated: boolean;
+  location: Location;
 }

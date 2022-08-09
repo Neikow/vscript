@@ -5,7 +5,7 @@ import {
   TypeNode,
   TypeValueNode,
   ValueNode,
-} from './syntax_tree_nodes';
+} from '../ast/nodes';
 import { Location, TYPE_ANY, VSCType } from './types';
 
 export interface OperatorMap {}

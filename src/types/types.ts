@@ -5,7 +5,7 @@ import {
   FunctionValueNode,
   NodeType,
   TypeNode,
-} from './syntax_tree_nodes';
+} from '../ast/nodes';
 
 export const BUILTIN_KWORD = 'std' as const;
 export type BUILTIN_KWORD = typeof BUILTIN_KWORD;

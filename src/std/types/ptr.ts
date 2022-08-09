@@ -1,12 +1,12 @@
-import { LanguageDefinition } from '../../definitions';
-import { LanguageObject, LanguageObjectKind } from '../../objects';
+import { LanguageObject, LanguageObjectKind } from '../../types/objects';
 import {
   ContextType,
   FunctionValueNode,
+  LanguageDefinition,
   NodeType,
-} from '../../syntax_tree_nodes';
-import { Location, TYPE_ANY, VSCType } from '../../types';
-import TypeHelper from '../../type_helper';
+} from '../../ast/nodes';
+import { Location, TYPE_ANY, VSCType } from '../../types/types';
+import TypeHelper from '../../types/helper';
 
 import VSCTypeFun from './fun';
 

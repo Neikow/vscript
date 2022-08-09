@@ -6,7 +6,7 @@ import {
   LanguageObjectKind,
   ObjectProperty,
   PropertyKind,
-} from '../objects';
+} from '../types/objects';
 import { Types } from '../std/types';
 import {
   ComputableNode,
@@ -24,18 +24,20 @@ import {
   StructFieldInstanceNode,
   StructInstanceNode,
   TypeNode,
-} from '../syntax_tree_nodes';
-import { INFINITY, Location, NAN, TYPE_VOID } from '../types';
-import TypeHelper from '../type_helper';
+} from './nodes';
+import { INFINITY, Location, NAN, TYPE_VOID } from '../types/types';
+import TypeHelper from '../types/helper';
 
 interface ParseResult {
   before: string;
   middle: string;
   after: string;
   on_update: string;
+  address: string;
+  pointer_offset?: number;
 }
 
-export const compile = (tree: SyntaxTree, path: string) => {
+export const compiler = (tree: SyntaxTree, path: string) => {
   if (!tree.collapsed) tree.collapse();
   if (!tree.type_check()) throw Errors.CompilerError('Type-check failed');
 
@@ -84,6 +86,11 @@ export const compile = (tree: SyntaxTree, path: string) => {
     // if (v1 == v2) return '\t; ' + val;
     if (v1 == v2) return '';
     return '\t' + val;
+  }
+
+  function lea(v1: string, v2: string, comment?: string) {
+    // if (v1 == v2) return '\t; ' + val;
+    return `\tlea\t\t${v1}, ${v2}` + (comment ? `\t; ${comment}\n` : '\n');
   }
 
   function add(v1: string, v2: string, comment?: string) {
@@ -196,6 +203,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 middle: 'eax',
                 after: '',
                 on_update: '',
+                address: '',
               },
             ];
           }
@@ -218,6 +226,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 middle: 'eax',
                 after: '',
                 on_update: '',
+                address: '',
               },
             ];
           }
@@ -235,6 +244,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 middle: val[0].middle,
                 after: dec(val[0].middle) + val[0].on_update,
                 on_update: '',
+                address: '',
               },
             ];
           }
@@ -252,6 +262,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 middle: val[0].middle,
                 after: inc(val[0].middle) + val[0].on_update,
                 on_update: '',
+                address: '',
               },
             ];
           }
@@ -274,6 +285,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 middle: 'eax',
                 after: '',
                 on_update: left[0].on_update,
+                address: '',
               },
             ];
           }
@@ -299,6 +311,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 middle: 'eax',
                 after: '',
                 on_update: left[0].on_update,
+                address: '',
               },
             ];
           }
@@ -332,6 +345,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 middle: 'eax',
                 after: '',
                 on_update: '',
+                address: '',
               },
             ];
           }
@@ -339,15 +353,79 @@ export const compile = (tree: SyntaxTree, path: string) => {
             if (!node.left || !node.right) throw Errors.CompilerError();
             if (node.right.NT !== NT.property_node)
               throw Errors.CompilerError();
-            if (node.left.NT !== NT.reference) throw Errors.CompilerError();
+            if (
+              node.left.NT === NT.operator &&
+              node.left.op === 'access_property'
+            ) {
+              const [ref, stack] = TypeHelper.getPropertyStack(node);
 
-            const val = parseExpression(node.left, parent_context);
+              if (ref.definition.type?.NT !== NT.type_single)
+                throw Errors.CompilerError();
+              if (typeof ref.definition.type.type === 'string')
+                throw Errors.NotImplemented();
+              if (ref.definition.type.type.kind === LanguageObjectKind.instance)
+                throw Errors.NotImplemented();
 
-            if (val.length > 1) throw Errors.NotImplemented();
+              const offset = TypeHelper.getPropertyOffset(
+                ref.definition.type.type,
+                stack
+              );
 
-            // TODO:
+              const res = parseExpression(ref, parent_context);
 
-            return [val[0]];
+              if (res.length > 1) throw Errors.CompilerError();
+
+              if (res[0].address === '') throw Errors.CompilerError();
+
+              return [
+                {
+                  before:
+                    res[0].before +
+                    (offset
+                      ? sub(
+                          'eax',
+                          `${offset}`,
+                          'offsets the struct pointer to field'
+                        )
+                      : '') +
+                    mov('eax', `[eax]`, 'dereferencing the field address'),
+                  middle: 'eax',
+                  after: '',
+                  on_update:
+                    push('ebx') +
+                    mov('ebx', res[0].address, 'struct address') +
+                    mov(`[ebx - ${offset}]`, 'eax') +
+                    pop('ebx') + '\n',
+                  address: '',
+                },
+              ];
+            } else if (node.left.NT !== NT.reference)
+              throw Errors.CompilerError();
+
+            const [ref, stack] = TypeHelper.getPropertyStack(node);
+
+            if (ref.definition.type?.NT !== NT.type_single)
+              throw Errors.CompilerError();
+            if (typeof ref.definition.type.type === 'string')
+              throw Errors.NotImplemented();
+            if (ref.definition.type.type.kind === LanguageObjectKind.instance)
+              throw Errors.NotImplemented();
+
+            const offset = TypeHelper.getPropertyOffset(
+              ref.definition.type.type,
+              stack
+            );
+
+            const res = parseExpression(node.left, parent_context);
+
+            if (res.length > 1) throw Errors.NotImplemented();
+
+            return [
+              {
+                ...res[0],
+                pointer_offset: (res[0].pointer_offset ?? 0) + offset,
+              },
+            ];
           }
           default:
             throw Errors.NotImplemented(node.op);
@@ -376,15 +454,16 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 }`,
                 after: '',
                 on_update: '',
+                address: '',
               },
             ];
           }
           case DT.function_argument: {
-            // return address and function base pointer
-            const offset = 2;
+            // accounts for return address and function base pointer
+            const arguments_offset = 2;
 
-            let address = `DWORD PTR [ebp + ${
-              node.definition.index + offset
+            let address = `[ebp + ${
+              node.definition.index + arguments_offset
             } * 4]`;
             return [
               {
@@ -392,6 +471,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 middle: 'eax',
                 after: '',
                 on_update: mov(address, 'eax'),
+                address: address,
               },
             ];
           }
@@ -412,7 +492,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
               const current_function =
                 functions_stack[functions_stack.length - 1];
 
-              address = `DWORD PTR [ebp - ${
+              address = `[ebp - ${
                 node.definition.local_offset -
                 functions_stack.length +
                 (current_function ? current_function.arguments.length : 0)
@@ -425,7 +505,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 functions_stack.length - node.definition.definition_depth;
               const global_offset = offsets_stack.reduce((p, c) => p + c, 0);
 
-              address = `DWORD PTR [ebp + ${
+              address = `[ebp + ${
                 (parent_context.type === ContextType.function ? 1 : 0) +
                 global_arg_count +
                 depth +
@@ -439,6 +519,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 middle: 'eax',
                 after: '',
                 on_update: mov(address, 'eax'),
+                address: address,
               },
             ];
           }
@@ -467,6 +548,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
             middle: node.value,
             after: '',
             on_update: '',
+            address: '',
           },
         ];
       }
@@ -479,6 +561,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
             middle: val,
             after: '',
             on_update: '',
+            address: '',
           },
         ];
       }
@@ -505,6 +588,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 middle: addLiteralString(`>>> end dump`),
                 after: '',
                 on_update: '',
+                address: '',
               },
             ];
           }
@@ -514,7 +598,8 @@ export const compile = (tree: SyntaxTree, path: string) => {
       }
 
       case NT.struct_instance: {
-        let code = mov('eax', 'esp', 'save struct base pointer') + sub('eax', '4');
+        let code =
+          mov('eax', 'esp', 'save struct base pointer') + sub('eax', '4');
 
         if (!node.object.value.is_struct) throw Errors.CompilerError();
         if (!node.object.value.properties) throw Errors.CompilerError();
@@ -556,6 +641,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
             middle: val[0].middle,
             after: val[0].after,
             on_update: '',
+            address: '',
           };
         }
 
@@ -592,6 +678,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
             middle: 'eax',
             after: '',
             on_update: '',
+            address: '',
           },
         ];
       }
@@ -620,7 +707,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
           return aux(node.member, depth + 1);
         }
         case NT.literal_number: {
-          if (node.value_type !== Types.integer.object)
+          if (node.value_type !== Types.uint.object)
             throw Errors.NotImplemented();
           if (node.value === NAN || node.value === INFINITY)
             throw Errors.NotImplemented();
@@ -629,6 +716,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
             middle: node.value,
             after: '',
             on_update: '',
+            address: '',
           };
         }
         case NT.reference: {
@@ -641,6 +729,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
               middle: cmp(res[0].middle, '0') + je(label_fail),
               after: '',
               on_update: res[0].on_update,
+              address: '',
             };
           }
 
@@ -649,6 +738,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
             middle: res[0].middle,
             after: '',
             on_update: res[0].after,
+            address: '',
           };
         }
         case NT.operator: {
@@ -675,6 +765,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 middle: '',
                 after: '',
                 on_update: '',
+                address: '',
               };
             }
             case 'gt': {
@@ -698,6 +789,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 middle: '',
                 after: '',
                 on_update: '',
+                address: '',
               };
             }
 
@@ -722,6 +814,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 middle: '',
                 after: '',
                 on_update: '',
+                address: '',
               };
             }
 
@@ -746,6 +839,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 middle: '',
                 after: '',
                 on_update: '',
+                address: '',
               };
             }
 
@@ -770,6 +864,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 middle: '',
                 after: '',
                 on_update: '',
+                address: '',
               };
             }
 
@@ -794,6 +889,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 middle: '',
                 after: '',
                 on_update: '',
+                address: '',
               };
             }
             default: {
@@ -898,8 +994,14 @@ export const compile = (tree: SyntaxTree, path: string) => {
               value[0].after +
               '\n';
 
+            if (node.type.NT !== NT.type_single)
+              throw Errors.NotImplemented(node.type.NT);
+            if (typeof node.type.type === 'string')
+              throw Errors.NotImplemented('string type');
+
             node.global_offset = global_stack_offset;
             node.local_offset = local_stack_offset;
+
             node.definition_depth = functions_stack.length;
 
             return code;
@@ -1167,7 +1269,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
           indent + 1
         );
       else {
-        if (prop.type.type === Types.integer.object) {
+        if (prop.type.type === Types.uint.object) {
           code +=
             mov('eax', `[${pointer} - ${pointer_offset + offset}]`) +
             call('iprintLF');
@@ -1206,18 +1308,30 @@ export const compile = (tree: SyntaxTree, path: string) => {
       if (!type_node.type.properties) throw Errors.CompilerError();
       const res = parseExpression(node, parent_context);
 
+      if (res.length > 1) throw Errors.CompilerError();
+
       code +=
-        '\t; statement_debug (struct)\n' + 
+        '\t; statement_debug (struct)\n' +
         push('ebx') +
-        mov('ebx', 'eax') +
+        res[0].before +
+        mov('ebx', res[0].middle) +
+        (res[0].pointer_offset
+          ? sub(
+              'ebx',
+              `${res[0].pointer_offset}`,
+              'offsets the struct pointer to field'
+            )
+          : '') +
         print_struct(type_node.type, 'ebx', 0, 0) +
-        pop('ebx') + '\n';
+        res[0].after +
+        pop('ebx') +
+        '\n';
 
       return code;
     }
 
     switch (type_node.type) {
-      case Types.integer.object: {
+      case Types.uint.object: {
         const res = parseExpression(node, parent_context);
         if (res.length > 1) throw Errors.NotImplemented('tuples');
 

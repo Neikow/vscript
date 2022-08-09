@@ -1,30 +1,21 @@
-import { Types } from '.';
-import { LanguageDefinition } from '../../definitions';
 import { Errors } from '../../errors';
 import {
   LanguageObject,
   LanguageObjectInstance,
   LanguageObjectKind,
   ObjectProperty,
-  ObjectTypeProperty,
-  ObjectValueProperty,
   PropertyKind,
-} from '../../objects';
+} from '../../types/objects';
 import {
   ContextType,
   FunctionValueNode,
+  LanguageDefinition,
   NodeType,
-  TypeValueNode,
   ValueNode,
-} from '../../syntax_tree_nodes';
-import {
-  TYPE_BOOLEAN,
-  Location,
-  TYPE_FUNCTION,
-  TYPE_ANY,
-  VSCType,
-} from '../../types';
-import TypeHelper from '../../type_helper';
+} from '../../ast/nodes';
+import { Location, TYPE_ANY, VSCType } from '../../types/types';
+import VSCTypeUint from './uint';
+import VSCTypeFun from './fun';
 
 class VSCTypeArr implements VSCType {
   display: string = 'array';
@@ -44,7 +35,7 @@ class VSCTypeArr implements VSCType {
       optional: false,
       type: {
         NT: NodeType.type_single,
-        type: Types.integer.object,
+        type: VSCTypeUint.object,
       },
     },
   };
@@ -140,7 +131,7 @@ class VSCTypeArr implements VSCType {
         type: this.object,
       },
     },
-    value_type: Types.function.object,
+    value_type: VSCTypeFun.object,
   };
 }
 

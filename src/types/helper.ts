@@ -1,4 +1,4 @@
-import { Errors } from './errors';
+import { Errors } from '../errors';
 import {
   BooleanLiteralNode,
   DefinitionType as DT,
@@ -12,7 +12,7 @@ import {
   StringLiteralNode,
   TypeNode,
   UnionTypeNode,
-} from './syntax_tree_nodes';
+} from '../ast/nodes';
 
 import chalk from 'chalk';
 import {
@@ -22,11 +22,6 @@ import {
   ObjectProperty,
   PropertyKind,
 } from './objects';
-import VSCTypeBool from './std/types/bool';
-import VSCTypeFlt from './std/types/flt';
-import VSCTypeInt from './std/types/int';
-import VSCTypeStr from './std/types/str';
-import VSCTypeArr from './std/types/arr';
 import {
   BranchParameters,
   Location,
@@ -37,7 +32,7 @@ import {
   TYPE_VOID,
   UNDEFINED,
 } from './types';
-import { Types } from './std/types';
+import { Types } from '../std/types';
 
 let GLOBAL_NODE_ID = 0;
 
@@ -136,7 +131,7 @@ const TypeHelper = {
             if (!node.right) throw Errors.ParserError('Missing right operand.');
             return {
               NT: NT.type_single,
-              type: VSCTypeBool.object,
+              type: Types.bool.object,
             };
           }
           case 'not': {
@@ -145,7 +140,7 @@ const TypeHelper = {
 
             return {
               NT: NT.type_single,
-              type: VSCTypeBool.object,
+              type: Types.bool.object,
             };
           }
           case 'access_call': {
@@ -154,7 +149,7 @@ const TypeHelper = {
               if (node.left.value === 'console_input') {
                 return {
                   NT: NT.type_single,
-                  type: VSCTypeStr.object,
+                  type: Types.string.object,
                 };
               } else {
                 throw Errors.NotImplemented('special');
@@ -332,30 +327,30 @@ const TypeHelper = {
             }
 
             if (
-              rTypeNode.type == VSCTypeInt.object &&
-              lTypeNode.type == VSCTypeInt.object
+              rTypeNode.type == Types.uint.object &&
+              lTypeNode.type == Types.uint.object
             ) {
               return {
                 NT: NT.type_single,
-                type: VSCTypeInt.object,
+                type: Types.uint.object,
               };
             } else if (
-              (rTypeNode.type == VSCTypeFlt.object ||
-                rTypeNode.type === VSCTypeInt.object) &&
-              (lTypeNode.type == VSCTypeFlt.object ||
-                lTypeNode.type === VSCTypeInt.object)
+              (rTypeNode.type == Types.uint.object ||
+                rTypeNode.type === Types.uint.object) &&
+              (lTypeNode.type == Types.float.object ||
+                lTypeNode.type === Types.float.object)
             ) {
               return {
                 NT: NT.type_single,
-                type: VSCTypeFlt.object,
+                type: Types.float.object,
               };
             } else if (
-              lTypeNode.type == VSCTypeStr.object &&
-              rTypeNode.type == VSCTypeInt.object
+              lTypeNode.type == Types.string.object &&
+              rTypeNode.type == Types.uint.object
             ) {
               return {
                 NT: NT.type_single,
-                type: VSCTypeStr.object,
+                type: Types.string.object,
               };
             } else throw Errors.NotImplemented();
           }
@@ -382,30 +377,30 @@ const TypeHelper = {
             }
 
             if (
-              rTypeNode.type == VSCTypeInt.object &&
-              lTypeNode.type == VSCTypeInt.object
+              rTypeNode.type == Types.uint.object &&
+              lTypeNode.type == Types.uint.object
             ) {
               return {
                 NT: NT.type_single,
-                type: VSCTypeInt.object,
+                type: Types.uint.object,
               };
             } else if (
-              (rTypeNode.type == VSCTypeFlt.object ||
-                rTypeNode.type === VSCTypeInt.object) &&
-              (lTypeNode.type == VSCTypeFlt.object ||
-                lTypeNode.type === VSCTypeInt.object)
+              (rTypeNode.type == Types.float.object ||
+                rTypeNode.type === Types.uint.object) &&
+              (lTypeNode.type == Types.float.object ||
+                lTypeNode.type === Types.uint.object)
             ) {
               return {
                 NT: NT.type_single,
-                type: VSCTypeFlt.object,
+                type: Types.float.object,
               };
             } else if (
-              lTypeNode.type == VSCTypeStr.object &&
-              rTypeNode.type == VSCTypeInt.object
+              lTypeNode.type == Types.string.object &&
+              rTypeNode.type == Types.uint.object
             ) {
               return {
                 NT: NT.type_single,
-                type: VSCTypeStr.object,
+                type: Types.string.object,
               };
             }
 
@@ -434,22 +429,22 @@ const TypeHelper = {
             }
 
             if (
-              rTypeNode.type == VSCTypeInt.object &&
-              lTypeNode.type == VSCTypeInt.object
+              rTypeNode.type == Types.uint.object &&
+              lTypeNode.type == Types.uint.object
             ) {
               return {
                 NT: NT.type_single,
-                type: VSCTypeInt.object,
+                type: Types.uint.object,
               };
             } else if (
-              (rTypeNode.type == VSCTypeFlt.object ||
-                rTypeNode.type === VSCTypeInt.object) &&
-              (lTypeNode.type == VSCTypeFlt.object ||
-                lTypeNode.type === VSCTypeInt.object)
+              (rTypeNode.type == Types.float.object ||
+                rTypeNode.type === Types.uint.object) &&
+              (lTypeNode.type == Types.float.object ||
+                lTypeNode.type === Types.uint.object)
             ) {
               return {
                 NT: NT.type_single,
-                type: VSCTypeFlt.object,
+                type: Types.float.object,
               };
             }
 
@@ -471,8 +466,8 @@ const TypeHelper = {
             }
 
             if (
-              rTypeNode.type === VSCTypeInt.object ||
-              rTypeNode.type === VSCTypeFlt.object
+              rTypeNode.type === Types.uint.object ||
+              rTypeNode.type === Types.float.object
             ) {
               return {
                 NT: NT.type_single,
@@ -499,8 +494,8 @@ const TypeHelper = {
             }
 
             if (
-              lTypeNode.type === VSCTypeInt.object ||
-              lTypeNode.type === VSCTypeFlt.object
+              lTypeNode.type === Types.uint.object ||
+              lTypeNode.type === Types.float.object
             ) {
               return {
                 NT: NT.type_single,
@@ -661,7 +656,7 @@ const TypeHelper = {
             throw Errors.NotImplemented();
         }
 
-        const type = VSCTypeArr.newInstance(
+        const type = Types.array.newInstance(
           {
             type: array_type_node.type,
           },
@@ -671,7 +666,7 @@ const TypeHelper = {
               location: Location.computed,
               is_builtin: false,
               value: length,
-              value_type: VSCTypeInt.object,
+              value_type: Types.uint.object,
             },
           }
         );
@@ -1076,7 +1071,7 @@ const TypeHelper = {
           if (val.NT !== NT.literal_number)
             throw Errors.NotImplemented('non number argument');
 
-          if (val.value_type !== Types.integer.object) {
+          if (val.value_type !== Types.uint.object) {
             throw Errors.SyntaxError('Wrong array length argument');
           }
 
@@ -1195,12 +1190,52 @@ const TypeHelper = {
         } else {
           if (prop.type) count += TypeHelper.getTypeSize(prop.type);
         }
+        if (prop.name == name) break;
       } else {
         count += TypeHelper.getTypeSize(prop.type);
       }
     }
 
     return count;
+  },
+  getPropertyStack: (node: Node): [ReferenceNode, string[]] => {
+    function aux(node: Node): [ReferenceNode | undefined, string[]] {
+      switch (node.NT) {
+        case NT.operator: {
+          switch (node.op) {
+            case 'access_property': {
+              if (!node.left || !node.right) throw Errors.CompilerError();
+              if (
+                node.left.NT === NT.reference &&
+                node.right.NT === NT.property_node
+              ) {
+                const ref = node.left;
+                return [ref, [node.right.value]];
+              } else if (node.left.NT === NT.operator) {
+                if (node.right.NT !== NT.property_node)
+                  throw Errors.CompilerError();
+                const [ref, stack] = aux(node.left);
+                if (ref === undefined)
+                  throw Errors.CompilerError('Missing reference');
+
+                stack.push(node.right.value)
+                return [ref, stack];
+              }
+            }
+
+            default:
+              throw Errors.CompilerError(node.op);
+          }
+        }
+
+        default:
+          throw Errors.CompilerError(node.NT);
+      }
+    }
+
+    const [ref, stack] = aux(node);
+    if (ref === undefined) throw Errors.CompilerError('Missing reference');
+    return [ref, stack];
   },
 };
 

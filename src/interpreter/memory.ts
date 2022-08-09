@@ -1,6 +1,7 @@
-import { Errors } from './errors';
-import { LanguageObject, LanguageObjectInstance } from './objects';
+import { Errors } from '../errors';
+import { LanguageObject, LanguageObjectInstance } from '../types/objects';
 import { mapOperator } from './operators';
+import { Types } from '../std/types';
 import {
   AccessedPropertyNode,
   ComputableNode,
@@ -19,7 +20,7 @@ import {
   OperatorNode,
   ReferenceNode,
   ValueNode,
-} from './syntax_tree_nodes';
+} from '../ast/nodes';
 import {
   AssignmentToOperatorMap,
   BUILTIN_TYPES,
@@ -33,15 +34,7 @@ import {
   TYPE_UNKNOWN,
   TYPE_VOID,
   UNDEFINED,
-} from './types';
-
-import VSCTypeBool from './std/types/bool';
-import VSCTypeFlt from './std/types/flt';
-import VSCTypeFun from './std/types/fun';
-import VSCTypeInt from './std/types/int';
-import VSCTypePtr from './std/types/ptr';
-import VSCTypeStr from './std/types/str';
-import TypeHelper from './type_helper';
+} from '../types/types';
 
 export type ExpressionParser = (
   node: Node | undefined,
@@ -155,7 +148,7 @@ export class Memory {
             NT: NT.value_num,
             value: 1,
             location: Location.std,
-            value_type: VSCTypeInt.object,
+            value_type: Types.uint.object,
             is_builtin: false,
           },
           location: node.location,
@@ -266,7 +259,7 @@ export class Memory {
           is_builtin: false,
           location: Location.std,
           value: node.value,
-          value_type: VSCTypeStr.object,
+          value_type: Types.string.object,
         },
       ];
 
@@ -286,7 +279,7 @@ export class Memory {
           location: Location.std,
           NT: NT.value_bool,
           value: node.value,
-          value_type: VSCTypeBool.object,
+          value_type: Types.bool.object,
         },
       ];
 
@@ -294,7 +287,7 @@ export class Memory {
       const val =
         node.value === NAN
           ? NAN
-          : node.value_type == VSCTypeFlt.object
+          : node.value_type == Types.float.object
           ? parseFloat(node.value)
           : parseInt(node.value);
       return [
@@ -316,7 +309,7 @@ export class Memory {
             location: Location.std,
             NT: NT.value_ptr,
             value: NULL,
-            value_type: VSCTypePtr.object,
+            value_type: Types.pointer.object,
           },
         ];
       else if (node.value === UNDEFINED)
@@ -344,7 +337,7 @@ export class Memory {
             location: node.location,
             value: node.location.format(),
             is_builtin: false,
-            value_type: VSCTypeStr.object,
+            value_type: Types.string.object,
           };
           return [res];
         }
@@ -477,7 +470,7 @@ export class Memory {
       this.data.set(node.definition_id, {
         NT: NT.memory,
         MT: MT.function,
-        type: VSCTypeFun.object,
+        type: Types.fun.object,
         references: 0,
         mutable: false,
         value: node.value,
@@ -687,7 +680,7 @@ export class Memory {
         location: node.location,
         is_builtin: false,
         value: res.value,
-        value_type: VSCTypeFun.object,
+        value_type: Types.fun.object,
       };
       return [fun];
     } else throw Errors.ParserError(`Not implemented`);

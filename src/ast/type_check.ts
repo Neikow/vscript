@@ -1,23 +1,18 @@
 import chalk from 'chalk';
-import { LanguageDefinition } from '../definitions';
-import { Errors } from '../errors';
-import { LanguageObjectKind, PropertyKind } from '../objects';
-import { Types } from '../std/types';
 import { SyntaxTree } from '.';
+import { Errors } from '../errors';
+import { LanguageObjectKind, PropertyKind } from '../types/objects';
+import { Types } from '../std/types';
 import {
-  BooleanLiteralNode,
   ContextNode,
   DefinitionType as DT,
+  LanguageDefinition,
   Node,
   NodeType as NT,
-  NumberLiteralNode,
   OperatorNode,
-  RawTypeNode,
-  SingleTypeNode,
-  StringLiteralNode,
   TypeNode,
   UnionTypeNode,
-} from '../syntax_tree_nodes';
+} from './nodes';
 import {
   BranchParameters,
   TypeCheckResult,
@@ -26,13 +21,13 @@ import {
   TYPE_UNDEFINED,
   TYPE_UNKNOWN,
   TYPE_VOID,
-} from '../types';
-import TypeHelper from '../type_helper';
+} from '../types/types';
+import TypeHelper from '../types/helper';
 
 /**
  * Type checks the current tree.
  */
-export const type_check = (tree: SyntaxTree) => {
+export const typeChecker = (tree: SyntaxTree) => {
   if (!tree.collapsed) tree.collapse();
 
   function isReturnNeeded(params: BranchParameters) {
@@ -111,12 +106,12 @@ export const type_check = (tree: SyntaxTree) => {
 
         let is_return_needed = isReturnNeeded(params);
 
-        let has_return = false;
+        let context_has_return = false;
 
-        let code_unreachable = false;
+        let is_code_unreachable = false;
 
         for (let i = 0; i < node.members.length; i++) {
-          if (code_unreachable)
+          if (is_code_unreachable)
             throw Errors.SyntaxError(`Extraneous code: ${node.members[i].NT}`);
 
           const res = recurse(node.members[i], {
@@ -130,8 +125,8 @@ export const type_check = (tree: SyntaxTree) => {
             res.found_return.success &&
             !res.found_return.partial
           ) {
-            code_unreachable = true;
-            has_return = true;
+            is_code_unreachable = true;
+            context_has_return = true;
           }
 
           if (!res.success)
@@ -149,8 +144,8 @@ export const type_check = (tree: SyntaxTree) => {
         return {
           success: true,
           found_return: {
-            success: has_return,
-            partial: !has_return,
+            success: context_has_return,
+            partial: !context_has_return,
             is_needed: is_return_needed,
             return_type: params.return_type,
           },
@@ -306,7 +301,7 @@ export const type_check = (tree: SyntaxTree) => {
 
         const is_condition_valid = TypeHelper.canCast(condition_type, {
           NT: NT.type_single,
-          type: Types.boolean.object,
+          type: Types.bool.object,
         });
 
         if (!is_condition_valid) throw Errors.SyntaxError('Wrong condition');
@@ -382,7 +377,7 @@ export const type_check = (tree: SyntaxTree) => {
 
             if (
               l_type.type == r_type.type &&
-              (l_type.type == Types.integer.object ||
+              (l_type.type == Types.uint.object ||
                 l_type.type === Types.float.object)
             ) {
               return {
@@ -420,7 +415,7 @@ export const type_check = (tree: SyntaxTree) => {
 
             if (
               l_type.type !== Types.float.object &&
-              l_type.type !== Types.integer.object
+              l_type.type !== Types.uint.object
             )
               throw Errors.NotImplemented('non number types');
 
@@ -581,7 +576,18 @@ export const type_check = (tree: SyntaxTree) => {
             if (!node.left) throw Errors.ParserError('Missing left operand');
             if (!node.right) throw Errors.ParserError('Missing right operand');
 
-            if (node.left.NT !== NT.reference)
+            let res;
+
+            if (
+              node.left.NT === NT.operator &&
+              node.left.op === 'access_property'
+            ) {
+              const leftRes = recurse(node.left, params);
+
+              // TODO: implement proper type checking
+
+              return leftRes;
+            } else if (node.left.NT !== NT.reference)
               throw Errors.NotImplemented(node.left.NT);
 
             if (node.right.NT !== NT.property_node)
@@ -745,7 +751,7 @@ export const type_check = (tree: SyntaxTree) => {
 
             if (
               type_node.type === Types.float.object ||
-              type_node.type === Types.integer.object
+              type_node.type === Types.uint.object
             ) {
               return {
                 success: true,
@@ -790,7 +796,7 @@ export const type_check = (tree: SyntaxTree) => {
               throw Errors.NotImplemented(index_type.NT);
             }
 
-            if (index_type.type !== Types.integer.object) {
+            if (index_type.type !== Types.uint.object) {
               throw Errors.NotImplemented('non integer index');
             }
 
@@ -832,7 +838,7 @@ export const type_check = (tree: SyntaxTree) => {
 
           const is_condition_valid = TypeHelper.canCast(condition_type_node, {
             NT: NT.type_single,
-            type: Types.boolean.object,
+            type: Types.bool.object,
           });
 
           const res = recurse(branch.child, {
@@ -1021,12 +1027,12 @@ export const type_check = (tree: SyntaxTree) => {
           throw Errors.NotImplemented(NT.type_tuple);
         }
 
-        if (expression_type.type !== Types.integer.object)
+        if (expression_type.type !== Types.uint.object)
           throw Errors.TypeError(
             node.location,
             {
               NT: NT.type_single,
-              type: Types.integer.object,
+              type: Types.uint.object,
             },
             expression_type
           );
