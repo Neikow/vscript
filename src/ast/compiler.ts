@@ -395,7 +395,8 @@ export const compiler = (tree: SyntaxTree, path: string) => {
                     push('ebx') +
                     mov('ebx', res[0].address, 'struct address') +
                     mov(`[ebx - ${offset}]`, 'eax') +
-                    pop('ebx') + '\n',
+                    pop('ebx') +
+                    '\n',
                   address: '',
                 },
               ];
@@ -1214,18 +1215,6 @@ export const compiler = (tree: SyntaxTree, path: string) => {
     }
   }
 
-  text += aux(tree.root, tree.root);
-  text += mov('ebx', '0', 'exit code') + call('_exit');
-
-  writeFileSync(
-    path,
-    base +
-      text +
-      functions +
-      (data === '' ? '' : '\nsection .data\n' + data) +
-      (bss === '' ? '' : '\nsection .data\n' + bss)
-  );
-
   function print_struct(
     struct: LanguageObject,
     pointer: string,
@@ -1371,4 +1360,16 @@ export const compiler = (tree: SyntaxTree, path: string) => {
         throw Errors.NotImplemented(TypeHelper.formatType(type_node));
     }
   }
+
+  text += aux(tree.root, tree.root);
+  text += mov('ebx', '0', 'exit code') + call('_exit');
+
+  let asm_source =
+    base +
+    text +
+    functions +
+    (data === '' ? '' : '\nsection .data\n' + data) +
+    (bss === '' ? '' : '\nsection .data\n' + bss);
+
+  writeFileSync(path, asm_source);
 };

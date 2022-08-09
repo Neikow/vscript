@@ -16,6 +16,16 @@ export class Errors {
     return err.stack;
   }
 
+  static TestError(msg?: string) {
+    const err = new Error();
+    err.name = this.whitespace();
+    err.name += error(`Test Error\n`);
+    if (msg) err.name += msg + '.\n';
+    else err.name += '.';
+    err.name += this.whitespace();
+    return err;
+  }
+
   static ParserError(msg?: string) {
     const err = new Error();
     err.name = this.whitespace();

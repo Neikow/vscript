@@ -53,6 +53,6 @@ export class SyntaxTree {
   }
 
   compile(path: string) {
-    compiler(this, path);
+    return compiler(this, path);
   }
 }

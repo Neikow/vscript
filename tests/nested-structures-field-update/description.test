@@ -1,0 +1,71 @@
+Name: nested structures field update
+Description: Changing a field inside a nested structure
+
+Source: ```
+struct Position {
+  x: int;
+  y: int;
+}
+
+struct Velocity {
+  x: int;
+  y: int;
+}
+
+struct Player {
+  name: str;
+  pos: Position;
+  vel: Velocity;
+}
+
+let player = Player{
+  name: 'Bob',
+  pos: Position{
+    x: 10,
+    y: 5,
+  },
+  vel: Velocity{
+    x: 1,
+    y: 2,
+  }
+};
+
+debug player;
+
+player.pos.x = 4;
+
+debug player;
+```
+
+Exit Code: ```
+0
+```
+
+Output (stdout): ```
+Player{
+  name: Bob
+  pos: Position{
+    x: 10
+    y: 5
+  }
+  vel: Velocity{
+    x: 1
+    y: 2
+  }
+}
+Player{
+  name: Bob
+  pos: Position{
+    x: 4
+    y: 5
+  }
+  vel: Velocity{
+    x: 1
+    y: 2
+  }
+}
+```
+
+Output (stderr): ```
+
+```

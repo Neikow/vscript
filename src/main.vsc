@@ -1,33 +1,32 @@
-struct Position {
-  x: int;
-  y: int;
-}
+let x = 10;
 
-struct Velocity {
-  x: int;
-  y: int;
-}
+fn func1(arg: int) {
+  debug '  func1: x   = 10', x;
+  debug '  func1: arg = 20', arg;
 
-struct Player {
-  name: str;
-  pos: Position;
-  vel: Velocity;
-}
+  let y = 100;
 
-let player = Player{
-  name: 'Bob',
-  pos: Position{
-    x: 10,
-    y: 5,
-  },
-  vel: Velocity{
-    x: 1,
-    y: 2,
+  debug '  func1: x   = 10', x;
+  debug '  func1: arg = 20', arg;
+  debug '  func1: y  = 100', y;
+
+  fn func2(arg1: int, arg2: int) {
+    debug '    func2: arg  = 20', arg;
+    debug '    func2: x    = 10', x;
+    debug '    func2: y   = 100', y;
+    debug '    func2: arg1 = 40', arg1;
+    debug '    func2: arg2 = 60', arg2;
   }
-};
 
-debug player;
+  func2(40, 60);
 
-player.pos.x = 4;
+  debug '  func1: x   = 10', x;
+  debug '  func1: arg = 20', arg;
+  debug '  func1: y  = 100', y;
+}
 
-debug player;
+debug 'x', x;
+
+func1(20);
+
+debug 'x', x;

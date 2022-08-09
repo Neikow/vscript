@@ -1,0 +1,18 @@
+Name: {{test:name}}
+Description: {{test:description}}
+
+Source: ```
+{{test:code}}
+```
+
+Exit Code: ```
+{{test:exit-code}}
+```
+
+Output (stdout): ```
+{{test:stdout}}
+```
+
+Output (stderr): ```
+{{test:stderr}}
+```
