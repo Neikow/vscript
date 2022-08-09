@@ -26,6 +26,8 @@ export interface ObjectValueProperty {
   kind: PropertyKind.value;
   name: string;
   type: TypeNode | RawTypeNode;
+  index: number;
+  size: number | undefined;
   location: Location;
   optional: boolean;
 }
@@ -42,6 +44,7 @@ export interface LanguageObject {
   kind: LanguageObjectKind.object;
   is_struct: boolean;
   mutable: boolean;
+  size: number | undefined;
   builtin_reference: VSCType | undefined;
   location: Location;
   display_name: string;

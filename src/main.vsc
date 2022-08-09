@@ -1,9 +1,29 @@
-let x = 10;
-
-if x do {
-  let z = 100;
-
-  debug x + z;
-} else {
-  debug 'b';
+struct Position {
+  x: int;
+  y: int;
 }
+
+struct Velocity {
+  x: int;
+  y: int;
+}
+
+struct Player {
+  name: str;
+  pos: Position;
+  vel: Velocity;
+}
+
+let player = Player{
+  pos: Position{
+    x: 11,
+    y: 5,
+  },
+  vel: Velocity{
+    x: 1,
+    y: 2,
+  }
+  name: 'Bob',
+};
+
+debug player;

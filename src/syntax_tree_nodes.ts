@@ -66,7 +66,7 @@ export const enum NodeType {
   type_single = 'type_single',
   type_tuple = 'type_tuple',
   type_with_parameters = 'type_with_parameters',
-  raw_type = 'raw_type',
+  type_raw = 'raw_type',
   array = 'array',
   value_array = 'value_array',
 }
@@ -420,7 +420,6 @@ export interface StructFieldDefinitionNode extends NodeBase {
   name: string;
   type: TypeNode | RawTypeNode | undefined;
   type_check_id: number | undefined;
-
   location: Location;
   parent: DefinitionNodeStruct;
   optional: boolean;
@@ -601,7 +600,7 @@ export interface StatementGotoNode extends NodeBase {
 }
 
 export interface RawTypeNode extends NodeBase {
-  NT: NodeType.raw_type;
+  NT: NodeType.type_raw;
   types: (
     | RawTypeNode
     | LanguageObject

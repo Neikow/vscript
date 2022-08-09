@@ -178,8 +178,8 @@ function access_property(operands: OPERANDS, mem: Memory): ValueNode[] {
         throw Errors.NotImplemented(NT.type_tuple);
       }
 
-      if (struct_property.type.NT === NT.raw_type) {
-        throw Errors.NotImplemented(NT.raw_type);
+      if (struct_property.type.NT === NT.type_raw) {
+        throw Errors.NotImplemented(NT.type_raw);
       }
 
       if (

@@ -108,7 +108,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
     consume = false
   ) {
     if (accept(kind, values, consume)) return true;
-    throw Errors.UnexpectedToken(curr_tok, values);
+    throw Errors.UnexpectedToken(curr_tok, prev_tok, values);
   }
 
   function getReferencesFromNode(node: AST.Node): AST.ReferenceNode[] {
@@ -258,6 +258,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
           builtin_reference: undefined,
           is_struct: true,
           mutable: false,
+          size: undefined,
           properties: undefined,
           parameters: {
             template_types: undefined,
@@ -333,7 +334,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
       if (!struct) throw Errors.ParserError('missing struct');
 
       struct.properties = new Map<string, ObjectProperty>(
-        curr_node.fields.map((field): [string, ObjectProperty] => {
+        curr_node.fields.map((field, index): [string, ObjectProperty] => {
           if (!field.type) throw Errors.ParserError();
           return [
             field.name,
@@ -343,6 +344,9 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
               location: field.location,
               optional: field.optional,
               kind: PK.value,
+              index: index,
+              // TODO: change to 1 for `char` type.
+              size: undefined,
             },
           ];
         })
@@ -527,7 +531,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
 
   function type_union(): AST.RawTypeNode {
     const node: AST.RawTypeNode = {
-      NT: AST.NodeType.raw_type,
+      NT: AST.NodeType.type_raw,
       types: [],
     };
 
@@ -552,7 +556,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
       expect(TK.keyword, [']'], true);
 
       return {
-        NT: AST.NodeType.raw_type,
+        NT: AST.NodeType.type_raw,
         types: [
           {
             NT: AST.NodeType.type_with_parameters,
@@ -586,7 +590,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
 
       if (accept(TK.keyword, ['[', '<'])) return type_with_params(type);
 
-      return { NT: AST.NodeType.raw_type, types: [type] };
+      return { NT: AST.NodeType.type_raw, types: [type] };
     } else if (
       accept(TK.keyword, ['str', 'int', 'flt', 'ptr', 'bool', 'any'])
     ) {
@@ -607,7 +611,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
           );
 
         return {
-          NT: AST.NodeType.raw_type,
+          NT: AST.NodeType.type_raw,
           types: [type_map[prev_tok!.val as keyof typeof type_map]],
         };
       }
@@ -616,7 +620,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
         next();
         if (accept(TK.keyword, ['[', '<'])) return type_with_params(TYPE_ANY);
         return {
-          NT: AST.NodeType.raw_type,
+          NT: AST.NodeType.type_raw,
           types: [prev_tok!.val as TYPE_ANY],
         };
       }
@@ -624,7 +628,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
       if (curr_tok!.val === UNDEFINED) {
         next();
         return {
-          NT: AST.NodeType.raw_type,
+          NT: AST.NodeType.type_raw,
           types: [TYPE_UNDEFINED],
         };
       } else {
@@ -1755,7 +1759,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
     if (isUnreachable) throw Errors.UnreachableCode(prev_tok!);
 
     if (!accept(TK.identifier))
-      throw Errors.UnexpectedToken(curr_tok, ['identifier']);
+      throw Errors.UnexpectedToken(curr_tok, prev_tok, ['identifier']);
     if (!curr_tok) throw Errors.ParserError();
 
     fun.name = curr_tok.val;

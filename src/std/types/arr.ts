@@ -39,6 +39,8 @@ class VSCTypeArr implements VSCType {
       kind: PropertyKind.value,
       location: Location.std,
       name: 'length',
+      index: 0,
+      size: 4,
       optional: false,
       type: {
         NT: NodeType.type_single,
@@ -49,6 +51,7 @@ class VSCTypeArr implements VSCType {
 
   object: LanguageObject = {
     NT: NodeType.language_object,
+    size: 4,
     kind: LanguageObjectKind.object,
     display_name: this.display,
     location: Location.std,
@@ -60,21 +63,7 @@ class VSCTypeArr implements VSCType {
     ),
     parameters: {
       template_types: ['T'],
-      values: [
-        [
-          'length',
-          {
-            kind: PropertyKind.value,
-            location: Location.std,
-            name: 'length',
-            optional: false,
-            type: {
-              NT: NodeType.type_single,
-              type: Types.integer.object,
-            },
-          },
-        ],
-      ],
+      values: [['length', this._type_properties.length]],
     },
   };
 

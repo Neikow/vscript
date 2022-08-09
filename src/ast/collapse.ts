@@ -146,7 +146,7 @@ export const collapse = (syntaxTree: ContextNode): ContextNode => {
         return node;
       }
 
-      case NT.raw_type:
+      case NT.type_raw:
         return node;
 
       case NT.array: {

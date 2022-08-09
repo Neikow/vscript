@@ -15,6 +15,7 @@ class VSCTypePtr implements VSCType {
 
   object: LanguageObject = {
     NT: NodeType.language_object,
+    size: 4,
     kind: LanguageObjectKind.object,
     display_name: this.display,
     location: Location.std,

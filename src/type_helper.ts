@@ -1,11 +1,15 @@
 import { Errors } from './errors';
 import {
+  BooleanLiteralNode,
   DefinitionType as DT,
   Node,
   NodeType as NT,
+  NumberLiteralNode,
   OperatorNode,
+  RawTypeNode,
   ReferenceNode,
   SingleTypeNode,
+  StringLiteralNode,
   TypeNode,
   UnionTypeNode,
 } from './syntax_tree_nodes';
@@ -71,8 +75,8 @@ const TypeHelper = {
 
           if (type_override) return type_override;
 
-          if (node.definition.type.NT === NT.raw_type)
-            throw Errors.NotImplemented(NT.raw_type);
+          if (node.definition.type.NT === NT.type_raw)
+            throw Errors.NotImplemented(NT.type_raw);
 
           return node.definition.type;
         }
@@ -158,17 +162,17 @@ const TypeHelper = {
             } else if (node.left.NT === NT.language_type) {
               if (
                 node.left.definition.construct.value.return_type.NT ===
-                NT.raw_type
+                NT.type_raw
               )
-                throw Errors.NotImplemented(NT.raw_type);
+                throw Errors.NotImplemented(NT.type_raw);
               return node.left.definition.construct.value.return_type;
             } else {
               if (
                 node.left.NT === NT.reference &&
                 node.left.definition.DT == DT.function
               ) {
-                if (node.left.definition.value.return_type.NT === NT.raw_type)
-                  throw Errors.NotImplemented(NT.raw_type);
+                if (node.left.definition.value.return_type.NT === NT.type_raw)
+                  throw Errors.NotImplemented(NT.type_raw);
                 return node.left.definition.value.return_type;
               } else throw Errors.NotImplemented('call');
             }
@@ -211,8 +215,8 @@ const TypeHelper = {
                   throw Errors.NotImplemented(PropertyKind.type);
                 }
 
-                if (res.type.NT === NT.raw_type)
-                  throw Errors.NotImplemented(NT.raw_type);
+                if (res.type.NT === NT.type_raw)
+                  throw Errors.NotImplemented(NT.type_raw);
 
                 if (res.type.NT === NT.type_tuple)
                   throw Errors.NotImplemented(NT.type_tuple);
@@ -278,8 +282,8 @@ const TypeHelper = {
                 throw Errors.NotImplemented(PropertyKind.type);
               }
 
-              if (value.type.NT === NT.raw_type) {
-                throw Errors.NotImplemented(NT.raw_type);
+              if (value.type.NT === NT.type_raw) {
+                throw Errors.NotImplemented(NT.type_raw);
               }
 
               return value.type;
@@ -299,8 +303,8 @@ const TypeHelper = {
               throw Errors.NotImplemented(PropertyKind.type);
             }
 
-            if (value.type.NT === NT.raw_type) {
-              throw Errors.NotImplemented(NT.raw_type);
+            if (value.type.NT === NT.type_raw) {
+              throw Errors.NotImplemented(NT.type_raw);
             }
 
             return value.type;
@@ -542,16 +546,16 @@ const TypeHelper = {
               if (struct_field.kind === PropertyKind.type)
                 throw Errors.NotImplemented(PropertyKind.type);
 
-              if (struct_field.type.NT == NT.type_union) {
-                throw Errors.NotImplemented(NT.type_union);
-              }
+              if (struct_field.type.NT === NT.type_raw)
+                struct_field.type = TypeHelper.compileType(struct_field.type);
 
               if (struct_field.type.NT == NT.type_tuple) {
                 throw Errors.NotImplemented(NT.type_tuple);
               }
 
-              if (struct_field.type.NT === NT.raw_type)
-                throw Errors.NotImplemented(NT.raw_type);
+              if (struct_field.type.NT == NT.type_union) {
+                throw Errors.NotImplemented(NT.type_union);
+              }
 
               if (
                 // TODO: ugly .type.type
@@ -574,7 +578,7 @@ const TypeHelper = {
                   throw Errors.NotImplemented(NT.type_tuple);
                 }
 
-                if (fulfilled[0][1].type.NT === NT.raw_type) {
+                if (fulfilled[0][1].type.NT === NT.type_raw) {
                   throw Errors.NotImplemented(NT.type_union);
                 }
 
@@ -741,9 +745,12 @@ const TypeHelper = {
         throw Errors.NotImplemented(target.NT);
     }
   },
-  formatType: (node: TypeNode, useColors = true) => {
+  formatType: (node: TypeNode | RawTypeNode, useColors = true) => {
     if (node.NT === NT.type_tuple) {
       throw Errors.NotImplemented(node.NT);
+    }
+    if (node.NT === NT.type_raw) {
+      throw Errors.NotImplemented(NT.type_raw);
     }
     if (node.NT === NT.type_union) {
       return node.types
@@ -1019,6 +1026,181 @@ const TypeHelper = {
     }
 
     return res;
+  },
+  compileType: (node: RawTypeNode | TypeNode): TypeNode => {
+    const res: SingleTypeNode['type'][] = [];
+
+    if (
+      node.NT === NT.type_single ||
+      node.NT === NT.type_union ||
+      node.NT === NT.type_tuple
+    )
+      return node;
+
+    for (const T_node of node.types) {
+      if (typeof T_node === 'string') {
+        res.push(T_node);
+      } else if (T_node.NT === NT.language_object) {
+        res.push(T_node);
+      } else if (T_node.NT === NT.type_raw) {
+        const val = TypeHelper.compileType(T_node);
+        if (val.NT === NT.type_tuple)
+          throw Errors.NotImplemented(NT.type_tuple);
+        if (val.NT === NT.type_union) {
+          res.push(...val.types);
+        } else {
+          res.push(val.type);
+        }
+      } else if (T_node.NT === NT.type_with_parameters) {
+        if (typeof T_node.type === 'string') {
+          throw Errors.NotImplemented('string types');
+        }
+        if (T_node.type.NT === NT.type_with_parameters) {
+          throw Errors.NotImplemented('nested types with parameters');
+        }
+        if (T_node.type.parameters.values) {
+          throw Errors.NotImplemented('value parameters');
+        }
+        if (T_node.value_parameters) {
+          if (T_node.value_parameters.NT !== NT.expression_list) {
+            throw Errors.ParserError();
+          }
+          if (T_node.value_parameters.members.length > 1) {
+            throw Errors.NotImplemented('');
+          }
+
+          const val = TypeHelper.getLiteralValue(
+            T_node.value_parameters.members[0]
+          );
+
+          if (val.NT !== NT.literal_number)
+            throw Errors.NotImplemented('non number argument');
+
+          if (val.value_type !== Types.integer.object) {
+            throw Errors.SyntaxError('Wrong array length argument');
+          }
+
+          res.push(
+            Types.array.newInstance(
+              {
+                type: T_node.type,
+              },
+              {
+                length: {
+                  NT: NT.value_num,
+                  is_builtin: false,
+                  location: val.location,
+                  value: parseInt(val.value),
+                  value_type: val.value_type,
+                },
+              }
+            )
+          );
+        }
+      }
+    }
+
+    if (res.length == 0) throw Errors.ParserError('missing type');
+
+    if (res.length == 1) return { NT: NT.type_single, type: res[0] };
+
+    return { NT: NT.type_union, types: res };
+  },
+  getLiteralValue: (
+    node: Node
+  ): StringLiteralNode | BooleanLiteralNode | NumberLiteralNode => {
+    switch (node.NT) {
+      case NT.expression: {
+        if (!node.member) throw Errors.TypeCheckError('missing expression');
+        return TypeHelper.getLiteralValue(node.member);
+      }
+
+      case NT.literal_boolean:
+      case NT.literal_string:
+      case NT.literal_number: {
+        return node;
+      }
+
+      default: {
+        throw Errors.NotImplemented(node.NT);
+      }
+    }
+  },
+  getTypeSize: (node: TypeNode | RawTypeNode): number => {
+    if (node.NT === NT.type_raw) throw Errors.NotImplemented(NT.type_raw);
+    if (node.NT === NT.type_union) throw Errors.NotImplemented(NT.type_union);
+    if (node.NT === NT.type_tuple) throw Errors.NotImplemented(NT.type_tuple);
+
+    if (typeof node.type === 'string') throw Errors.NotImplemented(node.type);
+
+    if (node.type.kind === LanguageObjectKind.instance)
+      throw Errors.NotImplemented(LanguageObjectKind.instance);
+
+    if (node.type.is_struct) {
+      if (!node.type.properties)
+        throw Errors.TypeCheckError('Struct with no properties.');
+      return Array.from(node.type.properties.values())
+        .map((prop) =>
+          prop.kind === PropertyKind.value
+            ? prop.size === undefined
+              ? (prop.size = TypeHelper.getTypeSize(prop.type))
+              : prop.size
+            : 0
+        )
+        .reduce((prev, curr) => prev + curr, 0);
+    } else {
+      if (node.type.size === undefined)
+        throw Errors.TypeCheckError(
+          `${TypeHelper.formatType(node)} has no size.`
+        );
+      return node.type.size;
+    }
+  },
+  getPropertyOffset: (
+    obj: LanguageObject,
+    property_stack: string[]
+  ): number => {
+    if (!obj.properties)
+      throw Errors.ParserError(`${obj.display_name} has no properties.`);
+    if (property_stack.length === 1) {
+      let count = 0;
+
+      for (const [name, prop] of obj.properties) {
+        if (name === property_stack[0]) break;
+
+        if (prop.kind === PropertyKind.value)
+          count += TypeHelper.getTypeSize(prop.type);
+      }
+
+      return count;
+    }
+
+    let count = 0;
+
+    for (const [name, prop] of obj.properties) {
+      if (prop.kind === PropertyKind.type) continue;
+      if (name === property_stack[0]) {
+        if (prop.type.NT !== NT.type_single)
+          throw Errors.NotImplemented(TypeHelper.formatType(prop.type));
+        if (typeof prop.type.type === 'string')
+          throw Errors.NotImplemented(TypeHelper.formatType(prop.type));
+
+        if (prop.type.type.is_struct) {
+          if (prop.type.type.kind === LanguageObjectKind.instance)
+            throw Errors.CompilerError();
+          count += TypeHelper.getPropertyOffset(
+            prop.type.type,
+            property_stack.slice(1)
+          );
+        } else {
+          if (prop.type) count += TypeHelper.getTypeSize(prop.type);
+        }
+      } else {
+        count += TypeHelper.getTypeSize(prop.type);
+      }
+    }
+
+    return count;
   },
 };
 

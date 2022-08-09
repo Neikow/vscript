@@ -16,37 +16,90 @@ _start:
 	mov		ebp, esp	; save program base pointer
 	push	ebp
 
-	push	10	; (x)
+	mov		eax, esp	; save struct base pointer
+	sub		eax, 4
+	push	_s0
+	push	11
+	push	5
+	push	1
+	push	2
+	push	eax	; (player)
 
-if_else_0_0:
-	; condition
-	mov		eax, [ebp - 2 * 4]	; (x)
-	cmp		eax, 0
-	je		if_else_0_def
-
-	; body
-	push	100	; (z)
-
-	; statement_debug (int)
-	; op add
-	mov		eax, [ebp + -2 * 4]	; (x)
+	; statement_debug (struct)
+	push	ebx
 	mov		ebx, eax
-	mov		eax, [ebp - 3 * 4]	; (z)
-	add		eax, ebx
-	call	iprintLF
-
-	jmp		if_else_0_end
-
-if_else_0_def:
-	; body
-	; statement_debug (str)
-	mov		eax, _s0
+	mov		eax, _s1
+	call	sprint
+	mov		eax, _s2
 	call	sprintLF
-
-if_else_0_end:
+	mov		eax, _s3
+	call	sprint
+	mov		eax, _s4
+	call	sprint
+	mov		eax, [ebx - 0]
+	call	sprintLF
+	mov		eax, _s5
+	call	sprint
+	mov		eax, _s4
+	call	sprint
+	mov		eax, _s6
+	call	sprint
+	mov		eax, _s2
+	call	sprintLF
+	mov		eax, _s7
+	call	sprint
+	mov		eax, _s4
+	call	sprint
+	mov		eax, [ebx - 4]
+	call	iprintLF
+	mov		eax, _s8
+	call	sprint
+	mov		eax, _s4
+	call	sprint
+	mov		eax, [ebx - 8]
+	call	iprintLF
+	mov		eax, _s9
+	call	sprintLF
+	mov		eax, _s10
+	call	sprint
+	mov		eax, _s4
+	call	sprint
+	mov		eax, _s11
+	call	sprint
+	mov		eax, _s2
+	call	sprintLF
+	mov		eax, _s7
+	call	sprint
+	mov		eax, _s4
+	call	sprint
+	mov		eax, [ebx - 12]
+	call	iprintLF
+	mov		eax, _s8
+	call	sprint
+	mov		eax, _s4
+	call	sprint
+	mov		eax, [ebx - 16]
+	call	iprintLF
+	mov		eax, _s9
+	call	sprintLF
+	mov		eax, _s12
+	call	sprintLF
+	pop		ebx
 
 	mov		ebx, 0	; exit code
 	call	_exit
 
 section .data
-_s0: db 'b', 0h
+_s0: db 'Bob', 0h
+_s1: db 'Player', 0h
+_s2: db '{', 0h
+_s3: db '  name', 0h
+_s4: db ': ', 0h
+_s5: db '  pos', 0h
+_s6: db 'Position', 0h
+_s7: db '    x', 0h
+_s8: db '    y', 0h
+_s9: db '  }', 0h
+_s10: db '  vel', 0h
+_s11: db 'Velocity', 0h
+_s12: db '}', 0h

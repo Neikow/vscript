@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { LanguageDefinition } from '../definitions';
 import { Errors } from '../errors';
-import { LanguageObjectKind } from '../objects';
+import { LanguageObjectKind, PropertyKind } from '../objects';
 import { Types } from '../std/types';
 import { SyntaxTree } from '.';
 import {
@@ -55,8 +55,8 @@ export const type_check = (tree: SyntaxTree) => {
     for (let def of definitions.values()) {
       def.node.type_check_id = type_check_id++;
 
-      if (def.node.type && def.node.type.NT === NT.raw_type) {
-        throw Errors.TypeCheckError(NT.raw_type);
+      if (def.node.type && def.node.type.NT === NT.type_raw) {
+        throw Errors.TypeCheckError(NT.type_raw);
       }
 
       res.set(
@@ -71,111 +71,30 @@ export const type_check = (tree: SyntaxTree) => {
     return TypeHelper.mergeTypeConstraints([res], defaults);
   }
 
-  function getLiteralValue(
-    node: Node
-  ): StringLiteralNode | BooleanLiteralNode | NumberLiteralNode {
-    switch (node.NT) {
-      case NT.expression: {
-        if (!node.member) throw Errors.TypeCheckError('missing expression');
-        return getLiteralValue(node.member);
-      }
-
-      case NT.literal_boolean:
-      case NT.literal_string:
-      case NT.literal_number: {
-        return node;
-      }
-
-      default: {
-        throw Errors.NotImplemented(node.NT);
-      }
-    }
-  }
-
-  function compileType(node: RawTypeNode | TypeNode): TypeNode {
-    const res: SingleTypeNode['type'][] = [];
-
-    if (
-      node.NT === NT.type_single ||
-      node.NT === NT.type_union ||
-      node.NT === NT.type_tuple
-    )
-      return node;
-
-    for (const T_node of node.types) {
-      if (typeof T_node === 'string') {
-        res.push(T_node);
-      } else if (T_node.NT === NT.language_object) {
-        res.push(T_node);
-      } else if (T_node.NT === NT.raw_type) {
-        const val = compileType(T_node);
-        if (val.NT === NT.type_tuple)
-          throw Errors.NotImplemented(NT.type_tuple);
-        if (val.NT === NT.type_union) {
-          res.push(...val.types);
-        } else {
-          res.push(val.type);
-        }
-      } else if (T_node.NT === NT.type_with_parameters) {
-        if (typeof T_node.type === 'string') {
-          throw Errors.NotImplemented('string types');
-        }
-        if (T_node.type.NT === NT.type_with_parameters) {
-          throw Errors.NotImplemented('nested types with parameters');
-        }
-        if (T_node.type.parameters.values) {
-          throw Errors.NotImplemented('value parameters');
-        }
-        if (T_node.value_parameters) {
-          if (T_node.value_parameters.NT !== NT.expression_list) {
-            throw Errors.ParserError();
-          }
-          if (T_node.value_parameters.members.length > 1) {
-            throw Errors.NotImplemented('');
-          }
-
-          const val = getLiteralValue(T_node.value_parameters.members[0]);
-
-          if (val.NT !== NT.literal_number)
-            throw Errors.NotImplemented('non number argument');
-
-          if (val.value_type !== Types.integer.object) {
-            throw Errors.SyntaxError('Wrong array length argument');
-          }
-
-          res.push(
-            Types.array.newInstance(
-              {
-                type: T_node.type,
-              },
-              {
-                length: {
-                  NT: NT.value_num,
-                  is_builtin: false,
-                  location: val.location,
-                  value: parseInt(val.value),
-                  value_type: val.value_type,
-                },
-              }
-            )
-          );
-        }
-      }
-    }
-
-    if (res.length == 0) throw Errors.ParserError('missing type');
-
-    if (res.length == 1) return { NT: NT.type_single, type: res[0] };
-
-    return { NT: NT.type_union, types: res };
-  }
-
   function compileTypes(node: ContextNode) {
     node.definitions.forEach((def) => {
-      if (def.child_type.NT === NT.raw_type) {
-        def.node.type = compileType(def.child_type);
+      if (def.child_type.NT === NT.type_raw) {
+        def.node.type = TypeHelper.compileType(def.child_type);
         def.child_type = def.node.type;
       }
+    });
+  }
+
+  function typeCheckObjects(node: ContextNode) {
+    node.objects.forEach((obj) => {
+      if (obj.size !== undefined) return;
+      let size = 0;
+      if (!obj.properties) return;
+
+      obj.properties.forEach((prop) => {
+        if (prop.kind === PropertyKind.value) {
+          if (prop.type.NT === NT.type_raw)
+            prop.type = TypeHelper.compileType(prop.type);
+          size += TypeHelper.getTypeSize(prop.type);
+        }
+      });
+
+      obj.size = size;
     });
   }
 
@@ -183,6 +102,7 @@ export const type_check = (tree: SyntaxTree) => {
     switch (node.NT) {
       case NT.context: {
         compileTypes(node);
+        typeCheckObjects(node);
 
         let type_constraints = typeConstraintsFromDefinitions(
           node.definitions,
@@ -273,6 +193,7 @@ export const type_check = (tree: SyntaxTree) => {
         if (!node.member) throw Errors.ParserError('missing expression');
         return recurse(node.member, params);
       }
+
       case NT.definition: {
         switch (node.DT) {
           case DT.const:
@@ -288,8 +209,8 @@ export const type_check = (tree: SyntaxTree) => {
               throw Errors.NotImplemented(NT.type_union);
             }
 
-            if (node.type.NT === NT.raw_type) {
-              throw Errors.TypeCheckError(NT.raw_type);
+            if (node.type.NT === NT.type_raw) {
+              throw Errors.TypeCheckError(NT.type_raw);
             }
 
             // default behavior, set variable type to value type if not specified.
@@ -352,11 +273,13 @@ export const type_check = (tree: SyntaxTree) => {
               throw Errors.ParserError('missing context on function');
 
             for (const arg of node.value.arguments) {
-              arg.type = compileType(arg.type);
+              arg.type = TypeHelper.compileType(arg.type);
             }
 
-            if (node.value.return_type.NT === NT.raw_type) {
-              node.value.return_type = compileType(node.value.return_type);
+            if (node.value.return_type.NT === NT.type_raw) {
+              node.value.return_type = TypeHelper.compileType(
+                node.value.return_type
+              );
             }
 
             const params_override: BranchParameters = {
@@ -599,8 +522,10 @@ export const type_check = (tree: SyntaxTree) => {
                 throw Errors.SyntaxError('Too many arguments');
 
               for (let i = 0; i < func.arguments.length; i++) {
-                if (func.arguments[i].type.NT === NT.raw_type)
-                  func.arguments[i].type = compileType(func.arguments[i].type);
+                if (func.arguments[i].type.NT === NT.type_raw)
+                  func.arguments[i].type = TypeHelper.compileType(
+                    func.arguments[i].type
+                  );
 
                 if (!func.arguments[i].is_optional && !args[i]) {
                   throw Errors.SyntaxError(
@@ -732,8 +657,8 @@ export const type_check = (tree: SyntaxTree) => {
                 node.left.definition.DT === DT.var ||
                 node.left.definition.DT === DT.const
               ) {
-                if (node.left.definition.type.NT === NT.raw_type)
-                  throw Errors.NotImplemented(NT.raw_type);
+                if (node.left.definition.type.NT === NT.type_raw)
+                  throw Errors.NotImplemented(NT.type_raw);
 
                 if (node.left.definition.type.NT === NT.type_tuple)
                   throw Errors.NotImplemented(NT.type_tuple);
@@ -990,8 +915,8 @@ export const type_check = (tree: SyntaxTree) => {
           }
         }
 
-        if (node.parent.return_type.NT === NT.raw_type)
-          throw Errors.NotImplemented(NT.raw_type);
+        if (node.parent.return_type.NT === NT.type_raw)
+          throw Errors.NotImplemented(NT.type_raw);
 
         if (node.parent.return_type.NT === NT.type_tuple)
           throw Errors.NotImplemented(NT.type_tuple);

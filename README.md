@@ -7,6 +7,11 @@ An [object-oriented](https://en.wikipedia.org/wiki/Object-based_language) progra
 
 The format is similar to TypeScript in many aspects.
 
+## Roadmap
+- [ ] [Turing Complete](https://en.wikipedia.org/wiki/Turing_completeness)
+- [ ] Objects
+- [ ] Self-Hosting
+
 ## Syntax
 Here a brief list of the language capabilities.
 #### Variables and constants

@@ -38,8 +38,8 @@ export const execute = (tree: SyntaxTree) => {
         if (node.value.return_type.NT === NT.type_tuple) {
           throw Errors.NotImplemented(NT.type_tuple);
         }
-        if (node.value.return_type.NT === NT.raw_type)
-          throw Errors.NotImplemented(NT.raw_type);
+        if (node.value.return_type.NT === NT.type_raw)
+          throw Errors.NotImplemented(NT.type_raw);
         return [
           chalk.magentaBright('function ') +
             chalk.blueBright(node.value.name) +

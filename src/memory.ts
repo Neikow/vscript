@@ -417,7 +417,7 @@ export class Memory {
     if (node.definition_id === undefined)
       node.definition_id = this.definition_id++;
 
-    if (node.type.NT === NT.raw_type) throw Errors.ParserError(NT.raw_type);
+    if (node.type.NT === NT.type_raw) throw Errors.ParserError(NT.type_raw);
     if (node.type.NT === NT.type_tuple) throw Errors.ParserError(NT.type_tuple);
 
     if (node.DT === DT.function_argument) {
@@ -489,8 +489,8 @@ export class Memory {
       if (node.type.NT === NT.type_union)
         throw Errors.ParserError(NT.type_union);
 
-      if (node.type.NT === NT.raw_type) {
-        throw Errors.NotImplemented(NT.raw_type);
+      if (node.type.NT === NT.type_raw) {
+        throw Errors.NotImplemented(NT.type_raw);
       }
 
       if (node.type.NT === NT.type_tuple) {
@@ -530,7 +530,7 @@ export class Memory {
 
     if (node.type.NT === NT.type_tuple) throw Errors.ParserError(NT.type_tuple);
 
-    if (node.type.NT === NT.raw_type) throw Errors.ParserError('raw type node');
+    if (node.type.NT === NT.type_raw) throw Errors.ParserError('raw type node');
 
     if (
       node.type.type === TYPE_UNKNOWN ||
@@ -653,7 +653,7 @@ export class Memory {
         throw Errors.NotImplemented(NT.type_tuple);
       }
 
-      if (node.type.NT === NT.raw_type)
+      if (node.type.NT === NT.type_raw)
         throw Errors.ParserError('raw type node');
 
       const value = this.parseExpression(

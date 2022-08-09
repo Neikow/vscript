@@ -51,14 +51,20 @@ export class Errors {
     return err;
   }
 
-  static UnexpectedToken(tok?: Token, expected?: string[]) {
+  static UnexpectedToken(tok?: Token, prev_tok?: Token, expected?: string[]) {
     let err = '';
     if (tok) {
       err += `Unexpected token: ${chalk.blueBright(
         tok.val
       )} at ${chalk.greenBright("'" + tok.loc.format() + "'")}.`;
     } else {
-      err += `Expected a token, got nothing..`;
+      err += `Expected a token, got nothing...`;
+
+      if (prev_tok) {
+        err += `\nPrevious token: ${chalk.blueBright(
+          prev_tok.val
+        )} at ${chalk.greenBright("'" + prev_tok.loc.format() + "'")}.`;
+      }
     }
 
     if (expected) {

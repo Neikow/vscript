@@ -1,9 +1,15 @@
 import { writeFileSync } from 'fs';
 import { SyntaxTree } from '.';
 import { Errors } from '../errors';
-import { LanguageObjectKind } from '../objects';
+import {
+  LanguageObject,
+  LanguageObjectKind,
+  ObjectProperty,
+  PropertyKind,
+} from '../objects';
 import { Types } from '../std/types';
 import {
+  ComputableNode,
   ContextNode,
   ContextType,
   DefinitionNodeFunction,
@@ -14,6 +20,9 @@ import {
   Node,
   NodeType as NT,
   SingleTypeNode,
+  StructFieldDefinitionNode,
+  StructFieldInstanceNode,
+  StructInstanceNode,
   TypeNode,
 } from '../syntax_tree_nodes';
 import { INFINITY, Location, NAN, TYPE_VOID } from '../types';
@@ -326,12 +335,26 @@ export const compile = (tree: SyntaxTree, path: string) => {
               },
             ];
           }
+          case 'access_property': {
+            if (!node.left || !node.right) throw Errors.CompilerError();
+            if (node.right.NT !== NT.property_node)
+              throw Errors.CompilerError();
+            if (node.left.NT !== NT.reference) throw Errors.CompilerError();
+
+            const val = parseExpression(node.left, parent_context);
+
+            if (val.length > 1) throw Errors.NotImplemented();
+
+            // TODO:
+
+            return [val[0]];
+          }
           default:
             throw Errors.NotImplemented(node.op);
         }
       }
       case NT.reference: {
-        if (!node.definition.type || node.definition.type.NT === NT.raw_type)
+        if (!node.definition.type || node.definition.type.NT === NT.type_raw)
           throw Errors.ParserError();
         if (
           node.definition.type.NT === NT.type_union ||
@@ -360,7 +383,9 @@ export const compile = (tree: SyntaxTree, path: string) => {
             // return address and function base pointer
             const offset = 2;
 
-            let address = `[ebp + ${node.definition.index + offset} * 4]`;
+            let address = `DWORD PTR [ebp + ${
+              node.definition.index + offset
+            } * 4]`;
             return [
               {
                 before: mov('eax', address, `(${node.definition.name})`),
@@ -387,7 +412,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
               const current_function =
                 functions_stack[functions_stack.length - 1];
 
-              address = `[ebp - ${
+              address = `DWORD PTR [ebp - ${
                 node.definition.local_offset -
                 functions_stack.length +
                 (current_function ? current_function.arguments.length : 0)
@@ -400,7 +425,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
                 functions_stack.length - node.definition.definition_depth;
               const global_offset = offsets_stack.reduce((p, c) => p + c, 0);
 
-              address = `[ebp + ${
+              address = `DWORD PTR [ebp + ${
                 (parent_context.type === ContextType.function ? 1 : 0) +
                 global_arg_count +
                 depth +
@@ -487,6 +512,90 @@ export const compile = (tree: SyntaxTree, path: string) => {
             throw Errors.NotImplemented(node.value);
         }
       }
+
+      case NT.struct_instance: {
+        let code = mov('eax', 'esp', 'save struct base pointer') + sub('eax', '4');
+
+        if (!node.object.value.is_struct) throw Errors.CompilerError();
+        if (!node.object.value.properties) throw Errors.CompilerError();
+
+        function expressionFromPropertyStack(
+          struct: StructInstanceNode,
+          property_stack: string[]
+        ): ComputableNode {
+          if (property_stack.length === 1) {
+            const res = struct.fields.filter(
+              (v) => v.name === property_stack[0]
+            );
+            if (res.length !== 1) throw Errors.NotImplemented();
+            return res[0].value;
+          }
+
+          const res = struct.fields.filter((v) => v.name === property_stack[0]);
+          if (res.length !== 1) throw Errors.NotImplemented();
+
+          return expressionFromPropertyStack(
+            <StructInstanceNode>(<ExpressionNode>res[0].value).member,
+            property_stack.slice(1)
+          );
+        }
+
+        function getValue(
+          struct: StructInstanceNode,
+          property_stack: string[]
+        ): ParseResult {
+          const val = parseExpression(
+            expressionFromPropertyStack(struct, property_stack),
+            parent_context
+          );
+
+          if (val.length !== 1) throw Errors.NotImplemented();
+
+          return {
+            before: val[0].before,
+            middle: val[0].middle,
+            after: val[0].after,
+            on_update: '',
+          };
+        }
+
+        function aux(field: ObjectProperty, property_stack: string[]): void {
+          if (field.kind === PropertyKind.type) throw Errors.CompilerError();
+          const type = field.type;
+          if (type.NT === NT.type_raw) throw Errors.CompilerError();
+          if (type.NT !== NT.type_single) throw Errors.NotImplemented();
+          if (typeof type.type === 'string') throw Errors.NotImplemented();
+
+          if (type.type.is_struct) {
+            if (type.type.kind !== LanguageObjectKind.object)
+              throw Errors.CompilerError();
+            if (!type.type.properties) throw Errors.CompilerError();
+
+            return type.type.properties.forEach((_field) =>
+              aux(_field, property_stack.concat(field.name))
+            );
+          }
+
+          const value = getValue(
+            <StructInstanceNode>node,
+            property_stack.concat(field.name)
+          );
+
+          code += value.before + push(value.middle) + value.after;
+        }
+
+        node.object.value.properties.forEach((prop) => aux(prop, []));
+
+        return [
+          {
+            before: code,
+            middle: 'eax',
+            after: '',
+            on_update: '',
+          },
+        ];
+      }
+
       default: {
         throw Errors.NotImplemented(node.NT);
       }
@@ -860,7 +969,7 @@ export const compile = (tree: SyntaxTree, path: string) => {
         return code;
       }
       case NT.statement_return: {
-        if (node.parent.return_type.NT === NT.raw_type)
+        if (node.parent.return_type.NT === NT.type_raw)
           throw Errors.CompilerError();
         if (
           node.parent.return_type.NT === NT.type_union ||
@@ -1015,6 +1124,70 @@ export const compile = (tree: SyntaxTree, path: string) => {
       (bss === '' ? '' : '\nsection .data\n' + bss)
   );
 
+  function print_struct(
+    struct: LanguageObject,
+    pointer: string,
+    pointer_offset: number,
+    indent: number
+  ) {
+    if (!struct.is_struct) throw Errors.CompilerError();
+    if (!struct.properties) throw Errors.CompilerError();
+    let code = '';
+
+    code +=
+      mov('eax', addLiteralString(struct.display_name)) +
+      call('sprint') +
+      mov('eax', addLiteralString('{')) +
+      call('sprintLF');
+
+    for (const [key, prop] of struct.properties) {
+      if (prop.kind === PropertyKind.type) throw Errors.NotImplemented();
+
+      const offset = TypeHelper.getPropertyOffset(struct, [key]);
+
+      code +=
+        mov('eax', addLiteralString('  '.repeat(1 + indent) + prop.name)) +
+        call('sprint') +
+        mov('eax', addLiteralString(': ')) +
+        call('sprint');
+
+      if (prop.type.NT === NT.type_raw) throw Errors.CompilerError();
+      if (prop.type.NT === NT.type_tuple) throw Errors.NotImplemented();
+      if (prop.type.NT === NT.type_union) throw Errors.NotImplemented();
+      if (typeof prop.type.type === 'string') throw Errors.NotImplemented();
+
+      if (prop.type.type.kind === LanguageObjectKind.instance)
+        throw Errors.NotImplemented();
+
+      if (prop.type.type.is_struct)
+        code += print_struct(
+          prop.type.type,
+          pointer,
+          pointer_offset + offset,
+          indent + 1
+        );
+      else {
+        if (prop.type.type === Types.integer.object) {
+          code +=
+            mov('eax', `[${pointer} - ${pointer_offset + offset}]`) +
+            call('iprintLF');
+        } else if (prop.type.type === Types.string.object) {
+          code +=
+            mov('eax', `[${pointer} - ${pointer_offset + offset}]`) +
+            call('sprintLF');
+        } else {
+          throw Errors.NotImplemented(prop.type.type.display_name);
+        }
+      }
+    }
+
+    code +=
+      mov('eax', addLiteralString('  '.repeat(indent) + '}')) +
+      call('sprintLF');
+
+    return code;
+  }
+
   function print_value(
     node: Node,
     type_node: SingleTypeNode,
@@ -1023,6 +1196,26 @@ export const compile = (tree: SyntaxTree, path: string) => {
     comment: boolean = true
   ) {
     let code = '';
+
+    if (typeof type_node.type === 'string') throw Errors.CompilerError();
+
+    if (
+      type_node.type.is_struct &&
+      type_node.type.kind === LanguageObjectKind.object
+    ) {
+      if (!type_node.type.properties) throw Errors.CompilerError();
+      const res = parseExpression(node, parent_context);
+
+      code +=
+        '\t; statement_debug (struct)\n' + 
+        push('ebx') +
+        mov('ebx', 'eax') +
+        print_struct(type_node.type, 'ebx', 0, 0) +
+        pop('ebx') + '\n';
+
+      return code;
+    }
+
     switch (type_node.type) {
       case Types.integer.object: {
         const res = parseExpression(node, parent_context);
