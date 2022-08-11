@@ -1839,7 +1839,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
     next();
 
     if (!accept(TK.keyword, [';'], true)) {
-      node.member = expression_list();
+      node.member = assignement();
 
       expect(TK.keyword, [';'], true);
     }

@@ -1,0 +1,20 @@
+Name: operator precendece (add, sub, mul)
+Description: 
+
+Source: ```
+let y = 3 * (12 - 3) + 2;
+
+debug 'y = 29', y;
+```
+
+Exit Code: ```
+0
+```
+
+Output (stdout): ```
+y = 29 29
+```
+
+Output (stderr): ```
+
+```

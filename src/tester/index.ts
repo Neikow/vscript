@@ -46,12 +46,17 @@ export class Tester {
       .map((dirent) => dirent.name);
   }
 
-  static newTest(main_path = './src/main.vsc') {
+  static async newTest(main_path = './src/main.vsc') {
     const used_names = this.getTestNames();
 
     let test_name: string = '';
     let test_name_foramatted: string = '';
     let is_test_name_valid = false;
+
+    const source = readFileSync(main_path, 'utf-8');
+    const tree = new SyntaxTree(main_path, source);
+    
+    tree.type_check();
 
     while (!is_test_name_valid) {
       test_name = readline
@@ -83,18 +88,14 @@ export class Tester {
       'utf-8'
     );
 
-    const source = readFileSync(main_path, 'utf-8');
-
-    const tree = new SyntaxTree(main_path, source);
-
     mkdirSync(`./tests/${test_name_foramatted}`);
 
-    tree.compile(`./tests/${test_name_foramatted}/asm.asm`);
+    tree.compile(`./tests/${test_name_foramatted}/out.asm`);
 
     exec(
       `cd ./tests/${test_name_foramatted} && arch runp nasm -i \"${path.resolve(
         './asm'
-      )}\" -felf \"./asm.asm\" && arch runp ld -m elf_i386 \"./asm.o\" -o \"./asm\" && arch runp rm \"./asm.o\" && arch runp ./asm`,
+      )}\" -felf \"./out.asm\" && arch runp ld -m elf_i386 \"./out.o\" -o \"./out\" && arch runp rm \"./out.o\" && arch runp ./out`,
       (error, stdout, stderr) => {
         console.log(
           `\nExit Code: ${error?.code ?? 0}\n- - -\nOutput:\n` +
@@ -132,14 +133,14 @@ export class Tester {
     );
   }
 
-  static runAllTests() {
+  static async runAllTests() {
     const used_names = this.getTestNames();
     for (let i = 0; i < used_names.length; i++) {
       this.runTest(used_names[i], i + 1, used_names.length);
     }
   }
 
-  static runTest(test: string, index?: number, total?: number) {
+  static async runTest(test: string, index?: number, total?: number) {
     const used_names = this.getTestNames();
     if (!used_names.includes(test))
       throw Errors.TestError('Test does not exist');
@@ -212,9 +213,9 @@ export class Tester {
     if (!result.is_valid.exit_code) {
       res +=
         '- - -\n' +
-        "> ❌ Exit codes don't match.\nGot " +
+        "> ❌ Exit codes don't match.\nGot:\n" +
         chalk.red(result.result.exit_code) +
-        '\n\nExpected ' +
+        '\n\nExpected:\n' +
         chalk.blue(result.expected.exit_code) +
         '\n';
     } else {
@@ -224,9 +225,9 @@ export class Tester {
     if (!result.is_valid.stdout) {
       res +=
         '- - -\n' +
-        "> ❌ Outputs don't match.\nGot " +
+        "> ❌ Outputs don't match.\nGot:\n" +
         chalk.red(result.result.stdout) +
-        '\n\nExpected ' +
+        '\n\nExpected:\n' +
         chalk.blue(result.expected.stdout) +
         '\n';
     } else {
@@ -236,9 +237,9 @@ export class Tester {
     if (!result.is_valid.stderr) {
       res +=
         '- - -\n' +
-        "> ❌ Errors don't match.\nGot " +
+        "> ❌ Errors don't match.\nGot:\n" +
         chalk.red(result.result.stderr) +
-        '\n\nExpected ' +
+        '\n\nExpected:\n' +
         chalk.blue(result.expected.stderr) +
         '\n';
     } else {

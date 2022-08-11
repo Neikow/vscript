@@ -1,0 +1,79 @@
+Name: while loop conditions
+Description: test for equality and inequalities
+
+Source: ```
+let x1 = 0;
+
+while x1 <= 5 do {
+  debug x1++;
+}
+
+let x2 = 10;
+
+while x2 >= 5 do {
+  debug x2--;
+}
+
+let x3 = 0;
+
+while x3 < 5 do {
+  debug x3++;
+}
+
+let x4 = 10;
+
+while x4 > 5 do {
+  debug x4--;
+}
+
+let x5 = 0;
+
+while x5 != 5 do {
+  debug x5++;
+}
+
+let x = 1;
+
+while x == 1 do {
+  debug x++;
+}
+```
+
+Exit Code: ```
+0
+```
+
+Output (stdout): ```
+0
+1
+2
+3
+4
+5
+10
+9
+8
+7
+6
+5
+0
+1
+2
+3
+4
+10
+9
+8
+7
+6
+0
+1
+2
+3
+4
+1
+```
+
+Output (stderr): ```
+
+```

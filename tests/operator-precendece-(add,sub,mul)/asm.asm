@@ -18,28 +18,29 @@ _start:
 
 	; op add
 	; op mul
-	mov		eax, 10
-	; op mul
-	mov		ebx, 10
-	mov		ecx, 10
-	mov		eax, ebx
-	mul		ecx
+	mov		eax, 3
+	; op sub
+	mov		ecx, 3
+	mov		ebx, 12
+	sub		ebx, ecx
 	mul		ebx
-	; op mul
-	mov		ebx, 10
-	; op mul
-	mov		ecx, 10
-	mov		edx, 10
-	mov		eax, ecx
-	mul		edx
-	mov		eax, ebx
-	mul		ecx
+	mov		ebx, 2
 	add		eax, ebx
-	push	eax	; (x)
+	push	eax	; (y)
 
-	; statement_debug (int)
-	mov		eax, [ebp - 2 * 4]	; (x)
+	; statement_debug (tuple)
+	mov		eax, _s0
+	call	sprint
+
+	mov		eax, _s1
+	call	sprint
+
+	mov		eax, [ebp - 2 * 4]	; (y)
 	call	iprintLF
 
 	mov		ebx, 0	; exit code
 	call	_exit
+
+section .data
+_s0: db 'y = 29', 0h
+_s1: db ' ', 0h

@@ -1,4 +1,4 @@
-import { writeFileSync } from 'fs';
+import { open, writeFileSync } from 'fs';
 import { SyntaxTree } from '.';
 import { Errors } from '../errors';
 import {
@@ -13,6 +13,7 @@ import {
   ContextNode,
   ContextType,
   DefinitionNodeFunction,
+  DefinitionNodeFunctionArgument,
   DefinitionType as DT,
   ExpressionListNode,
   ExpressionNode,
@@ -45,6 +46,20 @@ export const compiler = (tree: SyntaxTree, path: string) => {
 
   const offsets_stack: number[] = [];
   const functions_stack: FunctionNode[] = [];
+  const functions_base_offset_stack: number[] = [];
+
+  const increase_function_base_offsets = (count: number) => {
+    for (let i = 0; i < functions_base_offset_stack.length; i++) {
+      functions_base_offset_stack[i] += count;
+    }
+  };
+
+  const decrease_function_base_offsets = (count: number) => {
+    for (let i = 0; i < functions_base_offset_stack.length; i++) {
+      functions_base_offset_stack[i] -= count;
+    }
+  };
+
   let local_stack_offset: number = 0;
   let global_stack_offset: number = 0;
 
@@ -72,12 +87,18 @@ export const compiler = (tree: SyntaxTree, path: string) => {
   function pop(v: string, comment?: string) {
     local_stack_offset--;
     global_stack_offset--;
+
+    decrease_function_base_offsets(1);
+
     return `\tpop\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
   }
 
   function push(v: string, comment?: string) {
     local_stack_offset++;
     global_stack_offset++;
+
+    increase_function_base_offsets(1);
+
     return `\tpush\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
   }
 
@@ -99,6 +120,10 @@ export const compiler = (tree: SyntaxTree, path: string) => {
 
   function sub(v1: string, v2: string, comment?: string) {
     return `\tsub\t\t${v1}, ${v2}` + (comment ? `\t; ${comment}\n` : '\n');
+  }
+
+  function mul(v: string, comment?: string) {
+    return `\tmul\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
   }
 
   function xor(v1: string, v2: string, comment?: string) {
@@ -134,11 +159,11 @@ export const compiler = (tree: SyntaxTree, path: string) => {
   }
 
   function jg(v: string, comment?: string) {
-    return `\tjge\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
+    return `\tjg\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
   }
 
   function jl(v: string, comment?: string) {
-    return `\tjle\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
+    return `\tjl\t\t${v}` + (comment ? `\t; ${comment}\n` : '\n');
   }
 
   function je(v: string, comment?: string) {
@@ -174,21 +199,33 @@ export const compiler = (tree: SyntaxTree, path: string) => {
 
   let bss = '';
 
+  const pointers = ['eax', 'ebx', 'ecx', 'edx'] as const;
+
+  function offsetPointer(pointer: typeof pointers[number], offset: number) {
+    const idx = pointers.indexOf(pointer);
+    return pointers[(idx + offset) % pointers.length];
+  }
+
   function parseExpression(
     node: Node,
-    parent_context: ContextNode
+    parent_context: ContextNode,
+    pointer: typeof pointers[number]
   ): ParseResult[] {
     switch (node.NT) {
       case NT.expression: {
-        return parseExpression(node.member!, parent_context);
+        return parseExpression(node.member!, parent_context, pointer);
       }
       case NT.operator: {
         switch (node.op) {
           case 'add': {
-            if (!node.left || !node.right) throw Errors.ParserError();
-            const left = parseExpression(node.left, parent_context);
+            if (!node.left || !node.right) throw Errors.CompilerError();
+            const left = parseExpression(node.left, parent_context, pointer);
             if (left.length > 1) throw Errors.NotImplemented();
-            const right = parseExpression(node.right, parent_context);
+            const right = parseExpression(
+              node.right,
+              parent_context,
+              offsetPointer(pointer, 1)
+            );
             if (right.length > 1) throw Errors.NotImplemented();
 
             return [
@@ -196,11 +233,9 @@ export const compiler = (tree: SyntaxTree, path: string) => {
                 before:
                   '\t; op add\n' +
                   left[0].before +
-                  mov('ebx', left[0].middle) +
                   right[0].before +
-                  mov('eax', right[0].middle) +
-                  add('eax', 'ebx'),
-                middle: 'eax',
+                  add(pointer, offsetPointer(pointer, 1)),
+                middle: pointer,
                 after: '',
                 on_update: '',
                 address: '',
@@ -208,22 +243,50 @@ export const compiler = (tree: SyntaxTree, path: string) => {
             ];
           }
           case 'sub': {
-            if (!node.left || !node.right) throw Errors.ParserError();
-            const left = parseExpression(node.left, parent_context);
+            if (!node.left || !node.right) throw Errors.CompilerError();
+            const left = parseExpression(node.left, parent_context, pointer);
             if (left.length > 1) throw Errors.NotImplemented();
-            const right = parseExpression(node.right, parent_context);
+            const right = parseExpression(
+              node.right,
+              parent_context,
+              offsetPointer(pointer, 1)
+            );
             if (right.length > 1) throw Errors.NotImplemented();
 
             return [
               {
                 before:
                   '\t; op sub\n' +
+                  right[0].before +
                   left[0].before +
-                  mov('ebx', right[0].middle) +
+                  sub(pointer, offsetPointer(pointer, 1)),
+                middle: pointer,
+                after: '',
+                on_update: '',
+                address: '',
+              },
+            ];
+          }
+          case 'mul': {
+            if (!node.left || !node.right) throw Errors.CompilerError();
+            const left = parseExpression(node.left, parent_context, pointer);
+            if (left.length > 1) throw Errors.NotImplemented();
+            const right = parseExpression(
+              node.right,
+              parent_context,
+              offsetPointer(pointer, 1)
+            );
+            if (right.length > 1) throw Errors.NotImplemented();
+
+            return [
+              {
+                before:
+                  '\t; op mul\n' +
+                  left[0].before +
                   right[0].before +
                   mov('eax', left[0].middle) +
-                  sub('eax', 'ebx'),
-                middle: 'eax',
+                  mul(offsetPointer(pointer, 1)),
+                middle: pointer,
                 after: '',
                 on_update: '',
                 address: '',
@@ -235,8 +298,8 @@ export const compiler = (tree: SyntaxTree, path: string) => {
             if (node.left.NT !== NT.reference)
               throw Errors.NotImplemented('non reference decr');
 
-            const val = parseExpression(node.left, parent_context);
-            if (val.length > 1) throw Errors.ParserError();
+            const val = parseExpression(node.left, parent_context, pointer);
+            if (val.length > 1) throw Errors.CompilerError();
 
             return [
               {
@@ -253,8 +316,8 @@ export const compiler = (tree: SyntaxTree, path: string) => {
             if (node.left.NT !== NT.reference)
               throw Errors.NotImplemented('non reference decr');
 
-            const val = parseExpression(node.left, parent_context);
-            if (val.length > 1) throw Errors.ParserError();
+            const val = parseExpression(node.left, parent_context, pointer);
+            if (val.length > 1) throw Errors.CompilerError();
 
             return [
               {
@@ -269,9 +332,9 @@ export const compiler = (tree: SyntaxTree, path: string) => {
           case 'assign': {
             if (!node.left || !node.right) throw Errors.CompilerError();
 
-            const left = parseExpression(node.left, parent_context);
+            const left = parseExpression(node.left, parent_context, pointer);
             if (left.length > 1) throw Errors.NotImplemented();
-            const right = parseExpression(node.right, parent_context);
+            const right = parseExpression(node.right, parent_context, pointer);
             if (right.length > 1) throw Errors.NotImplemented();
 
             return [
@@ -279,10 +342,9 @@ export const compiler = (tree: SyntaxTree, path: string) => {
                 before:
                   '\t; op assign\n' +
                   right[0].before +
-                  mov('eax', right[0].middle) +
                   left[0].after +
                   right[0].after,
-                middle: 'eax',
+                middle: pointer,
                 after: '',
                 on_update: left[0].on_update,
                 address: '',
@@ -292,9 +354,13 @@ export const compiler = (tree: SyntaxTree, path: string) => {
           case 'sub_assign': {
             if (!node.left || !node.right) throw Errors.CompilerError();
 
-            const left = parseExpression(node.left, parent_context);
+            const left = parseExpression(node.left, parent_context, pointer);
             if (left.length > 1) throw Errors.NotImplemented();
-            const right = parseExpression(node.right, parent_context);
+            const right = parseExpression(
+              node.right,
+              parent_context,
+              offsetPointer(pointer, 1)
+            );
             if (right.length > 1) throw Errors.NotImplemented();
 
             return [
@@ -303,12 +369,10 @@ export const compiler = (tree: SyntaxTree, path: string) => {
                   '\t; op sub_assign\n' +
                   left[0].before +
                   right[0].before +
-                  mov('eax', left[0].middle) +
-                  mov('ebx', right[0].middle) +
-                  sub('eax', 'ebx') +
+                  sub(pointer, offsetPointer(pointer, 1)) +
                   left[0].after +
                   right[0].after,
-                middle: 'eax',
+                middle: pointer,
                 after: '',
                 on_update: left[0].on_update,
                 address: '',
@@ -321,28 +385,42 @@ export const compiler = (tree: SyntaxTree, path: string) => {
             if (node.left.definition.DT !== DT.function)
               throw Errors.NotImplemented();
 
-            const left = parseExpression(node.left, parent_context);
+            const left = parseExpression(node.left, parent_context, pointer);
             if (left.length > 1) throw Errors.CompilerError();
-            const right = parseExpression(node.right, parent_context);
+            const right = parseExpression(
+              node.right,
+              parent_context,
+              offsetPointer(pointer, 1)
+            );
 
             let before = '';
             before += left[0].before;
-            for (let i = right.length - 1; i > -1; i--) {
-              before +=
-                right[i].before +
-                push(right[i].middle, `arg ${i}`) +
-                right[i].after;
+            for (
+              let i = node.left.definition.value.arguments.length - 1;
+              i >= 0;
+              i--
+            ) {
+              if (node.left.definition.value.arguments[i].is_optional)
+                throw Errors.NotImplemented('is_optional');
+              if (i > right.length)
+                before += push('0', 'optional arguments are set to `null`');
+              else
+                before +=
+                  right[i].before +
+                  push(right[i].middle, `arg ${i}`) +
+                  right[i].after;
             }
             const arg_count = node.left.definition.value.arguments.length;
             before +=
-              '\t; op call\n' +
               call(left[0].middle) +
               add('esp', `${arg_count} * 4`, 'removes arguments from stack');
+
+            decrease_function_base_offsets(arg_count);
 
             return [
               {
                 before: before,
-                middle: 'eax',
+                middle: pointer,
                 after: '',
                 on_update: '',
                 address: '',
@@ -371,7 +449,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
                 stack
               );
 
-              const res = parseExpression(ref, parent_context);
+              const res = parseExpression(ref, parent_context, pointer);
 
               if (res.length > 1) throw Errors.CompilerError();
 
@@ -383,19 +461,27 @@ export const compiler = (tree: SyntaxTree, path: string) => {
                     res[0].before +
                     (offset
                       ? sub(
-                          'eax',
+                          pointer,
                           `${offset}`,
                           'offsets the struct pointer to field'
                         )
                       : '') +
-                    mov('eax', `[eax]`, 'dereferencing the field address'),
-                  middle: 'eax',
+                    mov(
+                      pointer,
+                      `[${pointer}]`,
+                      'dereferencing the field address'
+                    ),
+                  middle: pointer,
                   after: '',
                   on_update:
-                    push('ebx') +
-                    mov('ebx', res[0].address, 'struct address') +
-                    mov(`[ebx - ${offset}]`, 'eax') +
-                    pop('ebx') +
+                    push(offsetPointer(pointer, 1)) +
+                    mov(
+                      offsetPointer(pointer, 1),
+                      res[0].address,
+                      'struct address'
+                    ) +
+                    mov(`[${offsetPointer(pointer, 1)} - ${offset}]`, pointer) +
+                    pop(offsetPointer(pointer, 1)) +
                     '\n',
                   address: '',
                 },
@@ -417,7 +503,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
               stack
             );
 
-            const res = parseExpression(node.left, parent_context);
+            const res = parseExpression(node.left, parent_context, pointer);
 
             if (res.length > 1) throw Errors.NotImplemented();
 
@@ -434,7 +520,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
       }
       case NT.reference: {
         if (!node.definition.type || node.definition.type.NT === NT.type_raw)
-          throw Errors.ParserError();
+          throw Errors.CompilerError();
         if (
           node.definition.type.NT === NT.type_union ||
           node.definition.type.NT === NT.type_tuple
@@ -444,6 +530,9 @@ export const compiler = (tree: SyntaxTree, path: string) => {
           throw Errors.NotImplemented('string type');
         if (node.definition.type.type.kind === LanguageObjectKind.instance)
           throw Errors.NotImplemented(LanguageObjectKind.instance);
+
+        // accounts for return address and function base pointer
+        const ARGUMENTS_OFFSET = 2;
 
         switch (node.definition.DT) {
           case DT.function: {
@@ -460,18 +549,37 @@ export const compiler = (tree: SyntaxTree, path: string) => {
             ];
           }
           case DT.function_argument: {
-            // accounts for return address and function base pointer
-            const arguments_offset = 2;
+            const definition_index = functions_stack.findIndex(
+              (func) =>
+                func ==
+                (<DefinitionNodeFunctionArgument>node.definition).function
+            );
 
-            let address = `[ebp + ${
-              node.definition.index + arguments_offset
-            } * 4]`;
+            let address: string;
+
+            if (parent_context === node.definition.function.context) {
+              address = `[ebp + ${
+                node.definition.index + ARGUMENTS_OFFSET
+              } * 4]`;
+            } else {
+              address = `[ebp + ${
+                functions_base_offset_stack[definition_index] +
+                functions_stack
+                  .slice(definition_index)
+                  .map((n) => n.arguments.length)
+                  .reduce((p, n) => p + n, 0) +
+                (functions_stack.length - 1) * ARGUMENTS_OFFSET +
+                node.definition.index -
+                1
+              } * 4]`;
+            }
+
             return [
               {
-                before: mov('eax', address, `(${node.definition.name})`),
-                middle: 'eax',
+                before: mov(pointer, address, `(${node.definition.name})`),
+                middle: pointer,
                 after: '',
-                on_update: mov(address, 'eax'),
+                on_update: mov(address, pointer),
                 address: address,
               },
             ];
@@ -489,10 +597,10 @@ export const compiler = (tree: SyntaxTree, path: string) => {
 
             let address: string;
 
-            if (node.definition.context!.id === parent_context.id) {
-              const current_function =
-                functions_stack[functions_stack.length - 1];
+            const current_function =
+              functions_stack[functions_stack.length - 1];
 
+            if (node.definition.context!.id === parent_context.id) {
               address = `[ebp - ${
                 node.definition.local_offset -
                 functions_stack.length +
@@ -507,19 +615,19 @@ export const compiler = (tree: SyntaxTree, path: string) => {
               const global_offset = offsets_stack.reduce((p, c) => p + c, 0);
 
               address = `[ebp + ${
-                (parent_context.type === ContextType.function ? 1 : 0) +
                 global_arg_count +
-                depth +
+                depth * ARGUMENTS_OFFSET +
                 global_offset -
                 node.definition.global_offset
               } * 4]`;
             }
+
             return [
               {
-                before: mov('eax', address, `(${node.definition.name})`),
-                middle: 'eax',
+                before: mov(pointer, address, `(${node.definition.name})`),
+                middle: pointer,
                 after: '',
-                on_update: mov(address, 'eax'),
+                on_update: mov(address, pointer),
                 address: address,
               },
             ];
@@ -531,7 +639,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
       case NT.expression_list: {
         let res: ParseResult[] = [];
         for (const member of node.members) {
-          let list_member = parseExpression(member, parent_context);
+          let list_member = parseExpression(member, parent_context, pointer);
           if (list_member.length > 1)
             throw Errors.NotImplemented('Nested lists');
           res.push(list_member[0]);
@@ -545,8 +653,8 @@ export const compiler = (tree: SyntaxTree, path: string) => {
           throw Errors.NotImplemented('floats');
         return [
           {
-            before: '',
-            middle: node.value,
+            before: mov(pointer, node.value),
+            middle: pointer,
             after: '',
             on_update: '',
             address: '',
@@ -558,8 +666,8 @@ export const compiler = (tree: SyntaxTree, path: string) => {
 
         return [
           {
-            before: '',
-            middle: val,
+            before: mov(pointer, val),
+            middle: pointer,
             after: '',
             on_update: '',
             address: '',
@@ -599,8 +707,8 @@ export const compiler = (tree: SyntaxTree, path: string) => {
       }
 
       case NT.struct_instance: {
-        let code =
-          mov('eax', 'esp', 'save struct base pointer') + sub('eax', '4');
+        let before =
+          mov(pointer, 'esp', 'save struct base pointer') + sub(pointer, '4');
 
         if (!node.object.value.is_struct) throw Errors.CompilerError();
         if (!node.object.value.properties) throw Errors.CompilerError();
@@ -632,7 +740,8 @@ export const compiler = (tree: SyntaxTree, path: string) => {
         ): ParseResult {
           const val = parseExpression(
             expressionFromPropertyStack(struct, property_stack),
-            parent_context
+            parent_context,
+            offsetPointer(pointer, 1)
           );
 
           if (val.length !== 1) throw Errors.NotImplemented();
@@ -668,15 +777,15 @@ export const compiler = (tree: SyntaxTree, path: string) => {
             property_stack.concat(field.name)
           );
 
-          code += value.before + push(value.middle) + value.after;
+          before += value.before + push(value.middle) + value.after;
         }
 
         node.object.value.properties.forEach((prop) => aux(prop, []));
 
         return [
           {
-            before: code,
-            middle: 'eax',
+            before: before,
+            middle: pointer,
             after: '',
             on_update: '',
             address: '',
@@ -696,16 +805,21 @@ export const compiler = (tree: SyntaxTree, path: string) => {
     node: ExpressionListNode | ExpressionNode,
     label_success: string,
     label_fail: string,
-    parent_context: ContextNode
+    parent_context: ContextNode,
+    pointer: typeof pointers[number]
   ): ParseResult {
     if (node.NT === NT.expression_list)
       throw Errors.NotImplemented(NT.expression_list);
 
-    function aux(node: Node, depth: number): ParseResult {
+    function aux(
+      node: Node,
+      depth: number,
+      pointer: typeof pointers[number]
+    ): ParseResult {
       switch (node.NT) {
         case NT.expression: {
-          if (!node.member) throw Errors.ParserError('Missing expression');
-          return aux(node.member, depth + 1);
+          if (!node.member) throw Errors.CompilerError('Missing expression');
+          return aux(node.member, depth + 1, pointer);
         }
         case NT.literal_number: {
           if (node.value_type !== Types.uint.object)
@@ -713,15 +827,15 @@ export const compiler = (tree: SyntaxTree, path: string) => {
           if (node.value === NAN || node.value === INFINITY)
             throw Errors.NotImplemented();
           return {
-            before: '',
-            middle: node.value,
+            before: mov(pointer, node.value),
+            middle: '',
             after: '',
             on_update: '',
             address: '',
           };
         }
         case NT.reference: {
-          const res = parseExpression(node, parent_context);
+          const res = parseExpression(node, parent_context, 'eax');
           if (res.length > 1) throw Errors.CompilerError();
 
           if (depth < 2) {
@@ -746,22 +860,26 @@ export const compiler = (tree: SyntaxTree, path: string) => {
           if (depth > 1) throw Errors.NotImplemented(depth.toString());
           switch (node.op) {
             case 'lt': {
-              if (!node.left || !node.right) throw Errors.ParserError();
+              if (!node.left || !node.right) throw Errors.CompilerError();
 
-              const left = aux(node.left, depth + 1);
-              const right = aux(node.right, depth + 1);
+              const left = aux(node.left, depth + 1, pointer);
+              const right = aux(
+                node.right,
+                depth + 1,
+                offsetPointer(pointer, 1)
+              );
 
               return {
                 before:
                   left.before +
                   right.before +
-                  mov('eax', left.middle) +
-                  mov('ebx', right.middle) +
+                  // mov(pointer, left.middle) +
+                  // mov(offsetPointer(pointer, 1), right.middle) +
                   left.after +
                   left.on_update +
                   right.after +
                   right.on_update +
-                  cmp('eax', 'ebx') +
+                  cmp(pointer, offsetPointer(pointer, 1)) +
                   jge(label_fail),
                 middle: '',
                 after: '',
@@ -770,22 +888,26 @@ export const compiler = (tree: SyntaxTree, path: string) => {
               };
             }
             case 'gt': {
-              if (!node.left || !node.right) throw Errors.ParserError();
+              if (!node.left || !node.right) throw Errors.CompilerError();
 
-              const left = aux(node.left, depth + 1);
-              const right = aux(node.right, depth + 1);
+              const left = aux(node.left, depth + 1, pointer);
+              const right = aux(
+                node.right,
+                depth + 1,
+                offsetPointer(pointer, 1)
+              );
 
               return {
                 before:
                   left.before +
                   right.before +
-                  mov('eax', left.middle) +
-                  mov('ebx', right.middle) +
+                  // mov('eax', left.middle) +
+                  // mov('ebx', right.middle) +
                   left.after +
                   left.on_update +
                   right.after +
                   right.on_update +
-                  cmp('eax', 'ebx') +
+                  cmp(pointer, offsetPointer(pointer, 1)) +
                   jle(label_fail),
                 middle: '',
                 after: '',
@@ -795,22 +917,24 @@ export const compiler = (tree: SyntaxTree, path: string) => {
             }
 
             case 'leq': {
-              if (!node.left || !node.right) throw Errors.ParserError();
+              if (!node.left || !node.right) throw Errors.CompilerError();
 
-              const left = aux(node.left, depth + 1);
-              const right = aux(node.right, depth + 1);
+              const left = aux(node.left, depth + 1, pointer);
+              const right = aux(
+                node.right,
+                depth + 1,
+                offsetPointer(pointer, 1)
+              );
 
               return {
                 before:
                   left.before +
                   right.before +
-                  mov('eax', left.middle) +
-                  mov('ebx', right.middle) +
                   left.after +
                   left.on_update +
                   right.after +
                   right.on_update +
-                  cmp('eax', 'ebx') +
+                  cmp(pointer, offsetPointer(pointer, 1)) +
                   jg(label_fail),
                 middle: '',
                 after: '',
@@ -820,22 +944,24 @@ export const compiler = (tree: SyntaxTree, path: string) => {
             }
 
             case 'geq': {
-              if (!node.left || !node.right) throw Errors.ParserError();
+              if (!node.left || !node.right) throw Errors.CompilerError();
 
-              const left = aux(node.left, depth + 1);
-              const right = aux(node.right, depth + 1);
+              const left = aux(node.left, depth + 1, pointer);
+              const right = aux(
+                node.right,
+                depth + 1,
+                offsetPointer(pointer, 1)
+              );
 
               return {
                 before:
                   left.before +
                   right.before +
-                  mov('eax', left.middle) +
-                  mov('ebx', right.middle) +
                   left.after +
                   left.on_update +
                   right.after +
                   right.on_update +
-                  cmp('eax', 'ebx') +
+                  cmp(pointer, offsetPointer(pointer, 1)) +
                   jl(label_fail),
                 middle: '',
                 after: '',
@@ -845,22 +971,24 @@ export const compiler = (tree: SyntaxTree, path: string) => {
             }
 
             case 'eq': {
-              if (!node.left || !node.right) throw Errors.ParserError();
+              if (!node.left || !node.right) throw Errors.CompilerError();
 
-              const left = aux(node.left, depth + 1);
-              const right = aux(node.right, depth + 1);
+              const left = aux(node.left, depth + 1, pointer);
+              const right = aux(
+                node.right,
+                depth + 1,
+                offsetPointer(pointer, 1)
+              );
 
               return {
                 before:
                   left.before +
                   right.before +
-                  mov('eax', left.middle) +
-                  mov('ebx', right.middle) +
                   left.after +
                   left.on_update +
                   right.after +
                   right.on_update +
-                  cmp('eax', 'ebx') +
+                  cmp(pointer, offsetPointer(pointer, 1)) +
                   jne(label_fail),
                 middle: '',
                 after: '',
@@ -870,22 +998,24 @@ export const compiler = (tree: SyntaxTree, path: string) => {
             }
 
             case 'neq': {
-              if (!node.left || !node.right) throw Errors.ParserError();
+              if (!node.left || !node.right) throw Errors.CompilerError();
 
-              const left = aux(node.left, depth + 1);
-              const right = aux(node.right, depth + 1);
+              const left = aux(node.left, depth + 1, pointer);
+              const right = aux(
+                node.right,
+                depth + 1,
+                offsetPointer(pointer, 1)
+              );
 
               return {
                 before:
                   left.before +
                   right.before +
-                  mov('eax', left.middle) +
-                  mov('ebx', right.middle) +
                   left.after +
                   left.on_update +
                   right.after +
                   right.on_update +
-                  cmp('eax', 'ebx') +
+                  cmp(pointer, offsetPointer(pointer, 1)) +
                   je(label_fail),
                 middle: '',
                 after: '',
@@ -903,7 +1033,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
         }
       }
     }
-    return aux(node, 0);
+    return aux(node, 0, pointer);
   }
 
   let string_index = 0;
@@ -925,6 +1055,8 @@ export const compiler = (tree: SyntaxTree, path: string) => {
   function addFunction(node: DefinitionNodeFunction): void {
     offsets_stack.push(local_stack_offset);
     functions_stack.push(node.value);
+    functions_base_offset_stack.push(0);
+
     local_stack_offset = 0 - node.value.arguments.length;
 
     const format_args = node.value.arguments
@@ -962,6 +1094,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
     local_stack_offset = offsets_stack.pop()!;
 
     functions_stack.pop();
+    functions_base_offset_stack.pop();
 
     functions += func;
   }
@@ -983,7 +1116,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
           }
           case DT.var: {
             if (!node.value) throw Errors.NotImplemented();
-            let value = parseExpression(node.value, parent_context);
+            let value = parseExpression(node.value, parent_context, 'eax');
             if (value.length > 1) throw Errors.NotImplemented('tuples');
 
             if (node.type_check_id === undefined)
@@ -1035,7 +1168,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
             code += print_value(
               {
                 NT: NT.literal_string,
-                value: ', ',
+                value: ' ',
                 location: Location.computed,
                 value_type: Types.string.object,
               },
@@ -1096,7 +1229,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
           return code;
         }
 
-        const value = parseExpression(node.member!, parent_context);
+        const value = parseExpression(node.member!, parent_context, 'eax');
 
         if (value.length > 1) throw Errors.NotImplemented('tuple');
         const { before, middle, after } = value[0];
@@ -1123,7 +1256,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
         return code;
       }
       case NT.expression: {
-        const val = parseExpression(node, parent_context);
+        const val = parseExpression(node, parent_context, 'eax');
 
         if (val.length > 1) throw Errors.NotImplemented('tuples');
 
@@ -1132,7 +1265,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
       case NT.statement_while: {
         let loop_idx = statements_counter[node.NT];
         if (loop_idx === undefined) statements_counter[node.NT] = loop_idx = 0;
-        else statements_counter[node.NT] = loop_idx++;
+        else loop_idx = statements_counter[node.NT] = loop_idx + 1;
 
         const label_success = `while${loop_idx}`;
         const label_fail = `end_while${loop_idx}`;
@@ -1145,7 +1278,8 @@ export const compiler = (tree: SyntaxTree, path: string) => {
           node.condition,
           label_success,
           label_fail,
-          parent_context
+          parent_context,
+          'eax'
         );
 
         code +=
@@ -1184,7 +1318,8 @@ export const compiler = (tree: SyntaxTree, path: string) => {
             branch.condition,
             label_success,
             label_fail,
-            parent_context
+            parent_context,
+            'eax'
           );
 
           code +=
@@ -1208,6 +1343,15 @@ export const compiler = (tree: SyntaxTree, path: string) => {
         code += `if_else_${statement_idx}_end:\n`;
         code += '\n';
 
+        return code;
+      }
+      case NT.statement_exit: {
+        if (!node.member) throw Errors.CompilerError();
+        const value = parseExpression(node.member!, parent_context, 'ebx');
+
+        if (value.length > 1) throw Errors.NotImplemented('tuples');
+
+        code += '\n\t; statement_exit\n' + value[0].before + call('_exit');
         return code;
       }
       default:
@@ -1295,7 +1439,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
       type_node.type.kind === LanguageObjectKind.object
     ) {
       if (!type_node.type.properties) throw Errors.CompilerError();
-      const res = parseExpression(node, parent_context);
+      const res = parseExpression(node, parent_context, 'ebx');
 
       if (res.length > 1) throw Errors.CompilerError();
 
@@ -1303,7 +1447,6 @@ export const compiler = (tree: SyntaxTree, path: string) => {
         '\t; statement_debug (struct)\n' +
         push('ebx') +
         res[0].before +
-        mov('ebx', res[0].middle) +
         (res[0].pointer_offset
           ? sub(
               'ebx',
@@ -1321,7 +1464,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
 
     switch (type_node.type) {
       case Types.uint.object: {
-        const res = parseExpression(node, parent_context);
+        const res = parseExpression(node, parent_context, 'eax');
         if (res.length > 1) throw Errors.NotImplemented('tuples');
 
         const { before, middle, after } = res[0];
@@ -1339,7 +1482,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
         return code;
       }
       case Types.string.object: {
-        const res = parseExpression(node, parent_context);
+        const res = parseExpression(node, parent_context, 'eax');
         if (res.length > 1) throw Errors.NotImplemented('tuples');
 
         const { before, middle, after } = res[0];
@@ -1362,6 +1505,8 @@ export const compiler = (tree: SyntaxTree, path: string) => {
   }
 
   text += aux(tree.root, tree.root);
+
+  // TODO: remove if program already exits;
   text += mov('ebx', '0', 'exit code') + call('_exit');
 
   let asm_source =

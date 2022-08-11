@@ -516,7 +516,7 @@ export interface StatementWhileNode extends NodeBase {
 
 export interface StatementExitNode extends NodeBase {
   NT: NodeType.statement_exit;
-  member: ExpressionListNode | undefined;
+  member: ExpressionNode | undefined;
   location: Location;
 }
 

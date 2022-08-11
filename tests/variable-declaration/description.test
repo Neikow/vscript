@@ -1,0 +1,25 @@
+Name: variable declaration
+Description: Declaring integer and string variables.
+
+Source: ```
+let x = 10;
+
+debug 'x = 10', x;
+
+let y = 'Hello World';
+
+debug 'y = "Hello World"', y;
+```
+
+Exit Code: ```
+0
+```
+
+Output (stdout): ```
+x = 10 10
+y = "Hello World" Hello World
+```
+
+Output (stderr): ```
+
+```

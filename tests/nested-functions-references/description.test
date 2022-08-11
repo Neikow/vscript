@@ -1,0 +1,64 @@
+Name: nested functions references
+Description: Variables access inside nested functions.
+
+Source: ```
+let x = 10;
+
+fn func1(arg: int) {
+  debug '  func1: x   = 10', x;
+  debug '  func1: arg = 20', arg;
+
+  let y = 100;
+  let z = 200;
+
+  debug '  func1: x   = 10', x;
+  debug '  func1: arg = 20', arg;
+  debug '  func1: y  = 100', y;
+
+  fn func2(arg1: int, arg2: int) {
+    debug '    func2: arg  = 20', arg;
+    debug '    func2: x    = 10', x;
+    debug '    func2: y   = 100', y;
+    debug '    func2: arg1 = 40', arg1;
+    debug '    func2: arg2 = 60', arg2;
+  }
+
+  func2(40, 60);
+
+  debug '  func1: x   = 10', x;
+  debug '  func1: arg = 20', arg;
+  debug '  func1: y  = 100', y;
+}
+
+debug 'x', x;
+
+func1(20);
+
+debug 'x', x;
+```
+
+Exit Code: ```
+0
+```
+
+Output (stdout): ```
+x 10
+  func1: x   = 10 10
+  func1: arg = 20 20
+  func1: x   = 10 10
+  func1: arg = 20 20
+  func1: y  = 100 100
+    func2: arg  = 20 20
+    func2: x    = 10 10
+    func2: y   = 100 100
+    func2: arg1 = 40 40
+    func2: arg2 = 60 60
+  func1: x   = 10 10
+  func1: arg = 20 20
+  func1: y  = 100 100
+x 10
+```
+
+Output (stderr): ```
+
+```

@@ -1,0 +1,18 @@
+Name: exit code
+Description: 
+
+Source: ```
+exit 10;
+```
+
+Exit Code: ```
+10
+```
+
+Output (stdout): ```
+
+```
+
+Output (stderr): ```
+
+```
