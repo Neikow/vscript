@@ -26,7 +26,14 @@ import {
   StructInstanceNode,
   TypeNode,
 } from './nodes';
-import { INFINITY, Location, NAN, TYPE_VOID } from '../types/types';
+import {
+  INFINITY,
+  Location,
+  NAN,
+  OPERATOR,
+  OPERATORS,
+  TYPE_VOID,
+} from '../types/types';
 import TypeHelper from '../types/helper';
 
 interface ParseResult {
@@ -36,6 +43,7 @@ interface ParseResult {
   on_update: string;
   address: string;
   pointer_offset?: number;
+  operation?: OPERATOR;
 }
 
 export const compiler = (tree: SyntaxTree, path: string) => {
@@ -231,7 +239,6 @@ export const compiler = (tree: SyntaxTree, path: string) => {
             return [
               {
                 before:
-                  '\t; op add\n' +
                   left[0].before +
                   right[0].before +
                   add(pointer, offsetPointer(pointer, 1)),
@@ -239,6 +246,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
                 after: '',
                 on_update: '',
                 address: '',
+                operation: 'add',
               },
             ];
           }
@@ -256,7 +264,6 @@ export const compiler = (tree: SyntaxTree, path: string) => {
             return [
               {
                 before:
-                  '\t; op sub\n' +
                   right[0].before +
                   left[0].before +
                   sub(pointer, offsetPointer(pointer, 1)),
@@ -264,6 +271,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
                 after: '',
                 on_update: '',
                 address: '',
+                operation: 'sub',
               },
             ];
           }
@@ -281,7 +289,6 @@ export const compiler = (tree: SyntaxTree, path: string) => {
             return [
               {
                 before:
-                  '\t; op mul\n' +
                   left[0].before +
                   right[0].before +
                   mov('eax', left[0].middle) +
@@ -290,6 +297,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
                 after: '',
                 on_update: '',
                 address: '',
+                operation: 'mul',
               },
             ];
           }
@@ -308,6 +316,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
                 after: dec(val[0].middle) + val[0].on_update,
                 on_update: '',
                 address: '',
+                operation: 'decr',
               },
             ];
           }
@@ -326,6 +335,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
                 after: inc(val[0].middle) + val[0].on_update,
                 on_update: '',
                 address: '',
+                operation: 'incr',
               },
             ];
           }
@@ -339,15 +349,12 @@ export const compiler = (tree: SyntaxTree, path: string) => {
 
             return [
               {
-                before:
-                  '\t; op assign\n' +
-                  right[0].before +
-                  left[0].after +
-                  right[0].after,
+                before: right[0].before + left[0].after + right[0].after,
                 middle: pointer,
                 after: '',
                 on_update: left[0].on_update,
                 address: '',
+                operation: 'assign',
               },
             ];
           }
@@ -366,7 +373,6 @@ export const compiler = (tree: SyntaxTree, path: string) => {
             return [
               {
                 before:
-                  '\t; op sub_assign\n' +
                   left[0].before +
                   right[0].before +
                   sub(pointer, offsetPointer(pointer, 1)) +
@@ -376,6 +382,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
                 after: '',
                 on_update: left[0].on_update,
                 address: '',
+                operation: 'sub_assign',
               },
             ];
           }
@@ -424,6 +431,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
                 after: '',
                 on_update: '',
                 address: '',
+                operation: 'access_call',
               },
             ];
           }
@@ -484,6 +492,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
                     pop(offsetPointer(pointer, 1)) +
                     '\n',
                   address: '',
+                  operation: 'access_property',
                 },
               ];
             } else if (node.left.NT !== NT.reference)

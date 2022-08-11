@@ -16,24 +16,10 @@ _start:
 	mov		ebp, esp	; save program base pointer
 	push	ebp
 
-	; op add
-	; op mul
-	mov		eax, 10
-	; op mul
-	mov		ebx, 10
-	mov		ecx, 10
-	mov		eax, ebx
-	mul		ecx
-	mul		ebx
-	; op mul
-	mov		ebx, 10
-	; op mul
-	mov		ecx, 10
-	mov		edx, 10
-	mov		eax, ecx
-	mul		edx
-	mov		eax, ebx
-	mul		ecx
+	mov		eax, 1
+	mov		ebx, 2
+	mov		ecx, 3
+	add		ebx, ecx
 	add		eax, ebx
 	push	eax	; (x)
 
