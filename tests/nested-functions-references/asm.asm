@@ -16,31 +16,41 @@ _start:
 	mov		ebp, esp	; save program base pointer
 	push	ebp
 
-	mov		eax, 10
-	push	eax	; (x)
+	push	10
 
 	; statement_debug (tuple)
 	mov		eax, _s9
+	push	eax
+	pop		eax
 	call	sprint
 
 	mov		eax, _s1
+	push	eax
+	pop		eax
 	call	sprint
 
-	mov		eax, [ebp - 2 * 4]	; (x)
+	mov		eax, [ebp - 2 * 4]
+	push	eax	; (x)
+	pop		eax
 	call	iprintLF
 
-	mov		ebx, 20
-	push	ebx	; arg 0
+	push	20
 	call	fn_func11
 	add		esp, 1 * 4	; removes arguments from stack
 	; statement_debug (tuple)
 	mov		eax, _s9
+	push	eax
+	pop		eax
 	call	sprint
 
 	mov		eax, _s1
+	push	eax
+	pop		eax
 	call	sprint
 
-	mov		eax, [ebp - 2 * 4]	; (x)
+	mov		eax, [ebp - 2 * 4]
+	push	eax	; (x)
+	pop		eax
 	call	iprintLF
 
 	mov		ebx, 0	; exit code
@@ -53,52 +63,82 @@ fn_func22:
 
 	; statement_debug (tuple)
 	mov		eax, _s4
+	push	eax
+	pop		eax
 	call	sprint
 
 	mov		eax, _s1
+	push	eax
+	pop		eax
 	call	sprint
 
-	mov		eax, [ebp + 8 * 4]	; (arg)
+	mov		eax, [ebp + 8 * 4]
+	push	eax	; (arg)
+	pop		eax
 	call	iprintLF
 
 	; statement_debug (tuple)
 	mov		eax, _s5
+	push	eax
+	pop		eax
 	call	sprint
 
 	mov		eax, _s1
+	push	eax
+	pop		eax
 	call	sprint
 
-	mov		eax, [ebp + 9 * 4]	; (x)
+	mov		eax, [ebp + 9 * 4]
+	push	eax	; (x)
+	pop		eax
 	call	iprintLF
 
 	; statement_debug (tuple)
 	mov		eax, _s6
+	push	eax
+	pop		eax
 	call	sprint
 
 	mov		eax, _s1
+	push	eax
+	pop		eax
 	call	sprint
 
-	mov		eax, [ebp + 5 * 4]	; (y)
+	mov		eax, [ebp + 5 * 4]
+	push	eax	; (y)
+	pop		eax
 	call	iprintLF
 
 	; statement_debug (tuple)
 	mov		eax, _s7
+	push	eax
+	pop		eax
 	call	sprint
 
 	mov		eax, _s1
+	push	eax
+	pop		eax
 	call	sprint
 
-	mov		eax, [ebp + 2 * 4]	; (arg1)
+	mov		eax, [ebp + 2 * 4]
+	push	eax	; (arg1)
+	pop		eax
 	call	iprintLF
 
 	; statement_debug (tuple)
 	mov		eax, _s8
+	push	eax
+	pop		eax
 	call	sprint
 
 	mov		eax, _s1
+	push	eax
+	pop		eax
 	call	sprint
 
-	mov		eax, [ebp + 3 * 4]	; (arg2)
+	mov		eax, [ebp + 3 * 4]
+	push	eax	; (arg2)
+	pop		eax
 	call	iprintLF
 
 
@@ -113,94 +153,138 @@ fn_func11:
 
 	; statement_debug (tuple)
 	mov		eax, _s0
+	push	eax
+	pop		eax
 	call	sprint
 
 	mov		eax, _s1
+	push	eax
+	pop		eax
 	call	sprint
 
-	mov		eax, [ebp + 3 * 4]	; (x)
+	mov		eax, [ebp + 3 * 4]
+	push	eax	; (x)
+	pop		eax
 	call	iprintLF
 
 	; statement_debug (tuple)
 	mov		eax, _s2
+	push	eax
+	pop		eax
 	call	sprint
 
 	mov		eax, _s1
+	push	eax
+	pop		eax
 	call	sprint
 
-	mov		eax, [ebp + 2 * 4]	; (arg)
+	mov		eax, [ebp + 2 * 4]
+	push	eax	; (arg)
+	pop		eax
 	call	iprintLF
 
-	mov		eax, 100
-	push	eax	; (y)
+	push	100
 
-	mov		eax, 200
-	push	eax	; (z)
+	push	200
 
 	; statement_debug (tuple)
 	mov		eax, _s0
+	push	eax
+	pop		eax
 	call	sprint
 
 	mov		eax, _s1
+	push	eax
+	pop		eax
 	call	sprint
 
-	mov		eax, [ebp + 3 * 4]	; (x)
+	mov		eax, [ebp + 3 * 4]
+	push	eax	; (x)
+	pop		eax
 	call	iprintLF
 
 	; statement_debug (tuple)
 	mov		eax, _s2
+	push	eax
+	pop		eax
 	call	sprint
 
 	mov		eax, _s1
+	push	eax
+	pop		eax
 	call	sprint
 
-	mov		eax, [ebp + 2 * 4]	; (arg)
+	mov		eax, [ebp + 2 * 4]
+	push	eax	; (arg)
+	pop		eax
 	call	iprintLF
 
 	; statement_debug (tuple)
 	mov		eax, _s3
+	push	eax
+	pop		eax
 	call	sprint
 
 	mov		eax, _s1
+	push	eax
+	pop		eax
 	call	sprint
 
-	mov		eax, [ebp - 1 * 4]	; (y)
+	mov		eax, [ebp - 1 * 4]
+	push	eax	; (y)
+	pop		eax
 	call	iprintLF
 
-	mov		ebx, 60
-	push	ebx	; arg 1
-	mov		ebx, 40
-	push	ebx	; arg 0
+	push	60
+	push	40
 	call	fn_func22
 	add		esp, 2 * 4	; removes arguments from stack
 	; statement_debug (tuple)
 	mov		eax, _s0
+	push	eax
+	pop		eax
 	call	sprint
 
 	mov		eax, _s1
+	push	eax
+	pop		eax
 	call	sprint
 
-	mov		eax, [ebp + 3 * 4]	; (x)
+	mov		eax, [ebp + 3 * 4]
+	push	eax	; (x)
+	pop		eax
 	call	iprintLF
 
 	; statement_debug (tuple)
 	mov		eax, _s2
+	push	eax
+	pop		eax
 	call	sprint
 
 	mov		eax, _s1
+	push	eax
+	pop		eax
 	call	sprint
 
-	mov		eax, [ebp + 2 * 4]	; (arg)
+	mov		eax, [ebp + 2 * 4]
+	push	eax	; (arg)
+	pop		eax
 	call	iprintLF
 
 	; statement_debug (tuple)
 	mov		eax, _s3
+	push	eax
+	pop		eax
 	call	sprint
 
 	mov		eax, _s1
+	push	eax
+	pop		eax
 	call	sprint
 
-	mov		eax, [ebp - 1 * 4]	; (y)
+	mov		eax, [ebp - 1 * 4]
+	push	eax	; (y)
+	pop		eax
 	call	iprintLF
 
 

@@ -1,0 +1,73 @@
+```
+obj Matrix [int n, int p] {
+  .label `Matrix{n}{p}`;
+
+  .properties {
+
+  }
+
+  .methods {
+
+  }
+
+  .operators {
+    + => (self, other) {
+
+    };
+    - => (self, other) {
+
+    };
+  }
+}
+
+if ... {
+  ...
+} else if ... {
+  ...
+} else {
+  ... 
+}
+
+switch ... {
+  ... => {
+
+  }
+  ... => {
+
+  }
+  default {
+
+  }
+}
+
+while ... {
+
+}
+
+do {
+
+} while ... ;
+
+foreach x in enumerable {
+
+}
+
+for (...; ...; ...) {
+
+}
+
+struct MyStruct {
+  field: type;
+}
+
+enum A {
+  a;
+  b;
+  c;
+}
+
+fn function(arg: type1, arg: type2): r_type {
+
+  return
+}
+```

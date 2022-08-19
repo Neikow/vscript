@@ -7,7 +7,7 @@ import {
 
 import { lexer } from '../lexer';
 import { collapse } from './collapse';
-import { compiler } from './compiler';
+import { compiler } from '../compiler/index';
 import { interpreter } from './interpreter';
 import { typeChecker } from './type_check';
 
