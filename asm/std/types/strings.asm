@@ -1,17 +1,17 @@
 ; creates a new string object in memory
 ; rcx -> string length
-; rsi -> char array pointer
-; rax <- string object address in memory
+; rdx -> char array pointer
+; rax <- string object address
 string_make:
-  mov rdi, [brk_curr]
-  push rdi
-  mov qword [rdi + 0 * 8], 0    ; string object `this`
-  mov qword [rdi + 1 * 8], 0    ; reference count
-  mov qword [rdi + 2 * 8], rcx  ; string length
-  mov qword [rdi + 3 * 8], rsi  ; char array pointer
-  add rdi, 4 * 8
-  mov [brk_curr], rdi
-  pop rax
+  mov   rdi, [brk_curr]
+  push  rdi
+  mov   qword [rdi + 0 * 8], 0    ; string object static `this`
+  mov   qword [rdi + 1 * 8], 0    ; reference count
+  mov   qword [rdi + 2 * 8], rcx  ; string length
+  mov   qword [rdi + 3 * 8], rsi  ; char array pointer
+  add   rdi, 4 * 8
+  mov   [brk_curr], rdi
+  pop   rax
   ret
 
 ; concatenates string stored in `rcx` and the string

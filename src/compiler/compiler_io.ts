@@ -51,6 +51,21 @@ export class CompilerIO {
           '\n'
         );
       }
+      case Types.uint.object: {
+        const res = this.expressionParser(node, parent_context, 'rax');
+        if (res.length > 1) throw Errors.NotImplemented('tuples');
+
+        const { before } = res[0];
+
+        return (
+          (comment ? `\t; statement_debug (str)\n` : '') +
+          before +
+          this.instructions.pop('rcx') +
+          this.instructions.mov('rcx', '[rcx + 2 * 8]') +
+          this.instructions.call(line_feed ? 'iprintLF' : 'iprint') +
+          '\n'
+        );
+      }
       default:
         throw Errors.NotImplemented(TypeHelper.formatType(type_node));
     }

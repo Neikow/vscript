@@ -54,7 +54,8 @@ export function compiler(tree: SyntaxTree, path: string) {
       ';     Generated assembly    \n' +
       '; --------------------------\n' +
       "\n%include\t'utils.asm'\n" +
-      "\n%include\t'std/types/strings.asm'\n",
+      "\n%include\t'std/types/strings.asm'\n" +
+      "\n%include\t'std/types/u64.asm'\n",
     text:
       '\nsection .text\n' +
       'global  _start\n' +
@@ -105,11 +106,22 @@ export function compiler(tree: SyntaxTree, path: string) {
         return parseExpression(node.member!, parent_context, register);
       }
       case NT.literal_string: {
-        const val = strings.add(node.value);
-
         return [
           {
-            before: val.before,
+            before: strings.add(node.value).before,
+            on_update: '',
+          },
+        ];
+      }
+      case NT.literal_number: {
+        if (node.value_type !== Types.uint.object)
+          throw Errors.NotImplemented(node.value_type.display_name);
+        return [
+          {
+            before:
+              I.mov('rcx', `${node.value}`) +
+              I.call('u64_make') +
+              I.push('rax'),
             on_update: '',
           },
         ];
@@ -219,6 +231,19 @@ export function compiler(tree: SyntaxTree, path: string) {
                     I.pop('rdx') +
                     I.pop('rcx') +
                     I.call('string_concat') +
+                    I.push('rax'),
+                  on_update: '',
+                },
+              ];
+            } else if (l_type.type === Types.uint.object) {
+              return [
+                {
+                  before:
+                    left[0].before +
+                    right[0].before +
+                    I.pop('rdx') +
+                    I.pop('rcx') +
+                    I.call('u64_add_u64') +
                     I.push('rax'),
                   on_update: '',
                 },

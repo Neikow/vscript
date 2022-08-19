@@ -16,23 +16,24 @@ iprint:
   xor  rdx, rdx
   mov  rsi, 10
   idiv rsi
-  add  rdx, 30h
+  add  rdx, 48
   push rdx
   cmp  rax, 0
   jnz  .divideLoop
   
   mov  rdx, rcx
-  mov  rbx, output_buffer
+  xor  rbx, rbx 
 
 .printLoop:
   dec  rcx
   pop  rax
-  mov  [rbx], al
+  mov  byte [output_buffer + rbx], al
   add  rbx, 1
   cmp  rcx, 0
   jnz  .printLoop
 
-  mov  rsi, output_buffer
+  mov  rdx, 10
+  mov  rcx, output_buffer
   call sprint
 
   pop  rsi

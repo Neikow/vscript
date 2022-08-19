@@ -1,11 +1,5 @@
-let x = 'hello my name is ';
+let x = 10;
+let y = 20;
 
-debug x;
+debug x + y + 40;
 
-let y = 'b' + 'o' + 'b' + 'b' + 'y';
-
-debug y;
-
-x += y;
-
-debug x;
