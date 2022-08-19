@@ -18,7 +18,8 @@ _start:
 
 
 	; statement_exit
-	mov		ebx, 10
+	push	10
+	pop		ebx
 	call	_exit
 	mov		ebx, 0	; exit code
 	call	_exit

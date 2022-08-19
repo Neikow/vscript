@@ -2,8 +2,8 @@ V-Script
 ======
 
 An [object-oriented](https://en.wikipedia.org/wiki/Object-based_language) programing language that compiles to machine code through Linux NASM x86.
-> Currently, the compilation only targets Linux and x86.
-> Support for x64 and other OS is scheduled sometimes.
+> Currently, the compilation only targets x64 Linux.
+> Support for other OS is scheduled sometimes.
 
 The format is similar to TypeScript in many aspects.
 

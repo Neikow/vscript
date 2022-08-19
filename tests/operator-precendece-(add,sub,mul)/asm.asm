@@ -16,26 +16,35 @@ _start:
 	mov		ebp, esp	; save program base pointer
 	push	ebp
 
-	; op add
-	; op mul
-	mov		eax, 3
-	; op sub
-	mov		ecx, 3
-	mov		ebx, 12
-	sub		ebx, ecx
+	push	2
+	push	3
+	push	3
+	push	12
+	pop		eax
+	pop		ebx
+	sub		eax, ebx
+	push	eax
+	mov		eax, 
 	mul		ebx
-	mov		ebx, 2
+	pop		eax
+	pop		ebx
 	add		eax, ebx
-	push	eax	; (y)
+	push	eax
 
 	; statement_debug (tuple)
 	mov		eax, _s0
+	push	eax
+	pop		eax
 	call	sprint
 
 	mov		eax, _s1
+	push	eax
+	pop		eax
 	call	sprint
 
-	mov		eax, [ebp - 2 * 4]	; (y)
+	mov		eax, [ebp - 3 * 4]
+	push	eax	; (y)
+	pop		eax
 	call	iprintLF
 
 	mov		ebx, 0	; exit code

@@ -18,21 +18,22 @@ _start:
 
 	mov		eax, esp	; save struct base pointer
 	sub		eax, 4
-	mov		ebx, _s0
-	push	ebx
-	mov		ebx, 10
-	push	ebx
-	mov		ebx, 5
-	push	ebx
-	mov		ebx, 1
-	push	ebx
-	mov		ebx, 2
-	push	ebx
-	push	eax	; (player)
+	mov		eax, _s0
+	push	eax
+	push	eax
+	push	10
+	push	
+	push	5
+	push	
+	push	1
+	push	
+	push	2
+	push	
 
 	; statement_debug (struct)
 	push	ebx
-	mov		ebx, [ebp - 7 * 4]	; (player)
+	mov		ebx, [ebp - 11 * 4]
+	push	ebx	; (player)
 	mov		eax, _s1
 	call	sprint
 	mov		eax, _s2
@@ -91,16 +92,11 @@ _start:
 	call	sprintLF
 	pop		ebx
 
-	; op assign
-	mov		eax, 4
+CCCC	push	4
+BBBBEEEE	; statement_debug (struct)
 	push	ebx
-	mov		ebx, [ebp - 7 * 4]	; struct address
-	mov		[ebx - 4], eax
-	pop		ebx
-
-	; statement_debug (struct)
-	push	ebx
-	mov		ebx, [ebp - 7 * 4]	; (player)
+	mov		ebx, [ebp - 11 * 4]
+	push	ebx	; (player)
 	mov		eax, _s1
 	call	sprint
 	mov		eax, _s2

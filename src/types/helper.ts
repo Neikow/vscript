@@ -396,7 +396,7 @@ const TypeHelper = {
               };
             } else if (
               lTypeNode.type == Types.string.object &&
-              rTypeNode.type == Types.uint.object
+              rTypeNode.type == Types.string.object
             ) {
               return {
                 NT: NT.type_single,
@@ -404,7 +404,11 @@ const TypeHelper = {
               };
             }
 
-            throw Errors.NotImplemented();
+            throw Errors.NotImplemented(
+              TypeHelper.formatType(lTypeNode) +
+                ' and ' +
+                TypeHelper.formatType(rTypeNode)
+            );
           }
 
           case 'sub': {
@@ -1218,7 +1222,7 @@ const TypeHelper = {
                 if (ref === undefined)
                   throw Errors.CompilerError('Missing reference');
 
-                stack.push(node.right.value)
+                stack.push(node.right.value);
                 return [ref, stack];
               }
             }
