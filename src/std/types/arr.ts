@@ -14,7 +14,7 @@ import {
   ValueNode,
 } from '../../ast/nodes';
 import { Location, TYPE_ANY, VSCType } from '../../types/types';
-import VSCTypeUint from './uint';
+import VSCTypeUint from './u64';
 import VSCTypeFun from './fun';
 
 class VSCTypeArr implements VSCType {

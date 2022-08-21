@@ -21,14 +21,13 @@ import { Errors } from '../errors';
 
 import VSCTypeBool from '../std/types/bool';
 import VSCTypeFun from '../std/types/fun';
-import VSCTypeUInt from '../std/types/uint';
-import VSCTypeFlt from '../std/types/flt';
+import VSCTypeU64 from '../std/types/u64';
+import VSCTypeF64 from '../std/types/f64';
 import VSCTypeStr from '../std/types/str';
 import VSCTypePtr from '../std/types/ptr';
 import VSCTypeArr from '../std/types/arr';
 import readline from 'readline-sync';
 import { LanguageObjectKind, PropertyKind } from '../types/objects';
-import TypeHelper from '../types/helper';
 
 type OPERANDS = [ValueNode[] | undefined, ValueNode[] | undefined];
 
@@ -122,11 +121,11 @@ function access_computed(operands: OPERANDS, mem: Memory): ValueNode[] {
     if (args[0].NT !== NT.value_num)
       throw Errors.NotImplemented('non number access');
 
-    if (args[0].value_type !== VSCTypeUInt.object)
+    if (args[0].value_type !== VSCTypeU64.object)
       throw Errors.TypeError(
         args[0].location,
-        { NT: NT.type_single, type: VSCTypeUInt.object,  },
-        { NT: NT.type_single, type: args[0].value_type,  }
+        { NT: NT.type_single, type: VSCTypeU64.object },
+        { NT: NT.type_single, type: args[0].value_type }
       );
 
     if (args[0].value === INFINITY || args[0].value === NAN) {
@@ -198,7 +197,6 @@ function access_property(operands: OPERANDS, mem: Memory): ValueNode[] {
           is_builtin: true,
           location: Location.computed,
           value: UNDEFINED,
-          
         },
       ];
     }
@@ -218,11 +216,10 @@ function access_property(operands: OPERANDS, mem: Memory): ValueNode[] {
         return [
           {
             NT: NT.value_num,
-            value_type: VSCTypeUInt.object,
+            value_type: VSCTypeU64.object,
             is_builtin: false,
             location: Location.computed,
             value: (target.value as string).length,
-            
           },
         ];
       } else throw Errors.NotImplemented(property.value);
@@ -234,11 +231,10 @@ function access_property(operands: OPERANDS, mem: Memory): ValueNode[] {
         return [
           {
             NT: NT.value_num,
-            value_type: VSCTypeUInt.object,
+            value_type: VSCTypeU64.object,
             is_builtin: false,
             location: Location.computed,
             value: (target.value as Array<ValueNode>).length,
-            
           },
         ];
       } else throw Errors.NotImplemented(property.value);
@@ -256,7 +252,6 @@ function not(operands: OPERANDS): ValueNode[] {
         NT: NT.value_type,
         value: VSCTypeBool.object,
         location: Location.std,
-        
       },
     ],
   ]);
@@ -286,7 +281,6 @@ function _typeof(operands: OPERANDS, mem: Memory): ValueNode[] {
         NT: NT.value_type,
         value: TYPE_UNDEFINED,
         location: Location.computed,
-        
       },
     ];
   }
@@ -297,7 +291,6 @@ function _typeof(operands: OPERANDS, mem: Memory): ValueNode[] {
         NT: NT.value_type,
         value: 'unknown',
         location: Location.std,
-        
       },
     ];
   }
@@ -308,7 +301,6 @@ function _typeof(operands: OPERANDS, mem: Memory): ValueNode[] {
         NT: NT.value_type,
         value: object[0].value_type,
         location: object[0].location,
-        
       },
     ];
 
@@ -317,7 +309,6 @@ function _typeof(operands: OPERANDS, mem: Memory): ValueNode[] {
       NT: NT.value_type,
       value: object[0].value_type,
       location: object[0].location,
-      
     },
   ];
 }
@@ -333,7 +324,7 @@ function access_call(operands: OPERANDS, mem: Memory): ValueNode[] {
     if (callable.value === TYPE_ANY || callable.value === TYPE_UNKNOWN)
       throw Errors.NotImplemented('any and unknown');
 
-    if (callable.value === VSCTypeUInt.object) {
+    if (callable.value === VSCTypeU64.object) {
       if (args[0].NT === NT.value_str) {
         const val = parseInt(args[0].value);
         if (isNaN(val)) {
@@ -342,9 +333,8 @@ function access_call(operands: OPERANDS, mem: Memory): ValueNode[] {
               NT: NT.value_num,
               is_builtin: true,
               location: Location.computed,
-              value_type: VSCTypeUInt.object,
+              value_type: VSCTypeU64.object,
               value: NAN,
-              
             },
           ];
         } else {
@@ -353,9 +343,8 @@ function access_call(operands: OPERANDS, mem: Memory): ValueNode[] {
               NT: NT.value_num,
               is_builtin: false,
               location: Location.computed,
-              value_type: VSCTypeUInt.object,
+              value_type: VSCTypeU64.object,
               value: val,
-              
             },
           ];
         }
@@ -365,9 +354,8 @@ function access_call(operands: OPERANDS, mem: Memory): ValueNode[] {
             NT: NT.value_num,
             is_builtin: false,
             location: Location.computed,
-            value_type: VSCTypeUInt.object,
+            value_type: VSCTypeU64.object,
             value: args[0].value,
-            
           },
         ];
       } else {
@@ -386,7 +374,6 @@ function access_call(operands: OPERANDS, mem: Memory): ValueNode[] {
             value_type: VSCTypeStr.object,
             is_builtin: false,
             value: args[0].value!.toString(),
-            
           },
         ];
       } else if (args[0].NT === NT.value_bool) {
@@ -397,7 +384,6 @@ function access_call(operands: OPERANDS, mem: Memory): ValueNode[] {
             value_type: VSCTypeStr.object,
             is_builtin: false,
             value: args[0].value == 0 ? 'false' : 'true',
-            
           },
         ];
       } else if (args[0].NT === NT.value_str) {
@@ -425,7 +411,6 @@ function access_call(operands: OPERANDS, mem: Memory): ValueNode[] {
           location: callable.location,
           is_builtin: false,
           value_type: VSCTypeStr.object,
-          
         },
       ];
     } else throw Errors.NotImplemented('special');
@@ -475,7 +460,6 @@ function and(operands: OPERANDS): ValueNode[] {
         NT: NT.value_type,
         value: VSCTypeBool.object,
         location: Location.std,
-        
       },
     ],
   ]);
@@ -502,8 +486,8 @@ function cast(operands: OPERANDS): ValueNode[] {
     if (object.value_type === VSCTypeBool.object) {
       return [object];
     } else if (
-      object.value_type === VSCTypeFlt.object ||
-      object.value_type === VSCTypeUInt.object
+      object.value_type === VSCTypeF64.object ||
+      object.value_type === VSCTypeU64.object
     ) {
       return [object.value == 0 ? FalseNode : TrueNode];
     } else if (object.value_type === VSCTypeStr.object) {
@@ -521,7 +505,6 @@ function cast(operands: OPERANDS): ValueNode[] {
       value_type: VSCTypeStr.object,
       is_builtin: true,
       location: Location.std,
-      
     },
   ];
 }
@@ -548,8 +531,8 @@ function leq(operands: OPERANDS): ValueNode[] {
     throw Errors.NotImplemented('Operation between undefined.');
 
   if (
-    left.value_type == VSCTypeFlt.object ||
-    left.value_type == VSCTypeUInt.object
+    left.value_type == VSCTypeF64.object ||
+    left.value_type == VSCTypeU64.object
   ) {
     if (typeof left.value === 'string' || typeof right.value === 'string')
       throw Errors.ParserError('Not implemented');
@@ -584,8 +567,8 @@ function lt(operands: OPERANDS): ValueNode[] {
     throw Errors.NotImplemented('Operation between undefined.');
 
   if (
-    left.value_type == VSCTypeFlt.object ||
-    left.value_type == VSCTypeUInt.object
+    left.value_type == VSCTypeF64.object ||
+    left.value_type == VSCTypeU64.object
   ) {
     if (typeof left.value === 'string' || typeof right.value === 'string')
       throw Errors.ParserError('Not implemented');
@@ -620,8 +603,8 @@ function gt(operands: OPERANDS): ValueNode[] {
     throw Errors.NotImplemented('Operation between undefined.');
 
   if (
-    left.value_type == VSCTypeFlt.object ||
-    left.value_type == VSCTypeUInt.object
+    left.value_type == VSCTypeF64.object ||
+    left.value_type == VSCTypeU64.object
   ) {
     if (typeof left.value === 'string' || typeof right.value === 'string')
       throw Errors.ParserError('Not implemented');
@@ -706,8 +689,7 @@ function mod(operands: OPERANDS): ValueNode[] {
           is_builtin: true,
           location: Location.std,
           value: NAN,
-          value_type: VSCTypeFlt.object,
-          
+          value_type: VSCTypeF64.object,
         },
       ];
 
@@ -718,8 +700,7 @@ function mod(operands: OPERANDS): ValueNode[] {
           is_builtin: false,
           location: Location.std,
           value: INFINITY,
-          value_type: VSCTypeFlt.object,
-          
+          value_type: VSCTypeF64.object,
         },
       ];
 
@@ -730,8 +711,7 @@ function mod(operands: OPERANDS): ValueNode[] {
           is_builtin: true,
           location: Location.computed,
           value: 0,
-          value_type: VSCTypeUInt.object,
-          
+          value_type: VSCTypeU64.object,
         },
       ];
 
@@ -743,8 +723,7 @@ function mod(operands: OPERANDS): ValueNode[] {
         is_builtin: false,
         location: Location.computed,
         value: value,
-        value_type: VSCTypeUInt.object,
-        
+        value_type: VSCTypeU64.object,
       },
     ];
   }
@@ -771,8 +750,8 @@ function wdiv(operands: OPERANDS): ValueNode[] {
     );
 
   if (
-    left.value_type == VSCTypeFlt.object ||
-    left.value_type == VSCTypeUInt.object
+    left.value_type == VSCTypeF64.object ||
+    left.value_type == VSCTypeU64.object
   ) {
     if (right.value_type == VSCTypeFun.object)
       throw Errors.ParserError('Not implemented.');
@@ -790,8 +769,7 @@ function wdiv(operands: OPERANDS): ValueNode[] {
         is_builtin: false,
         location: Location.computed,
         value: value,
-        value_type: VSCTypeUInt.object,
-        
+        value_type: VSCTypeU64.object,
       },
     ];
   }
@@ -818,8 +796,8 @@ function div(operands: OPERANDS): ValueNode[] {
     );
 
   if (
-    left.value_type == VSCTypeFlt.object ||
-    left.value_type == VSCTypeUInt.object
+    left.value_type == VSCTypeF64.object ||
+    left.value_type == VSCTypeU64.object
   ) {
     if (right.value_type == VSCTypeFun.object)
       throw Errors.ParserError('Not implemented.');
@@ -837,8 +815,7 @@ function div(operands: OPERANDS): ValueNode[] {
         is_builtin: false,
         location: Location.computed,
         value: value,
-        value_type: VSCTypeFlt.object,
-        
+        value_type: VSCTypeF64.object,
       },
     ];
   }
@@ -865,8 +842,8 @@ function pow(operands: OPERANDS): ValueNode[] {
     );
 
   if (
-    left.value_type == VSCTypeFlt.object ||
-    left.value_type == VSCTypeUInt.object
+    left.value_type == VSCTypeF64.object ||
+    left.value_type == VSCTypeU64.object
   ) {
     if (right.value_type == VSCTypeFun.object)
       throw Errors.ParserError('Not implemented.');
@@ -877,10 +854,10 @@ function pow(operands: OPERANDS): ValueNode[] {
     const value = (left.value as number) ** (right.value as number);
 
     const type =
-      left.value_type === VSCTypeFlt.object ||
-      right.value_type === VSCTypeFlt.object
-        ? VSCTypeFlt.object
-        : VSCTypeUInt.object;
+      left.value_type === VSCTypeF64.object ||
+      right.value_type === VSCTypeF64.object
+        ? VSCTypeF64.object
+        : VSCTypeU64.object;
 
     return [
       {
@@ -889,7 +866,6 @@ function pow(operands: OPERANDS): ValueNode[] {
         location: Location.computed,
         value: value,
         value_type: type,
-        
       },
     ];
   }
@@ -912,7 +888,7 @@ function mul(operands: OPERANDS): ValueNode[] {
 
   if (
     left.value_type === VSCTypeStr.object &&
-    right.value_type == VSCTypeUInt.object
+    right.value_type == VSCTypeU64.object
   ) {
     let value = '';
 
@@ -927,7 +903,6 @@ function mul(operands: OPERANDS): ValueNode[] {
         location: Location.computed,
         value: value,
         value_type: VSCTypeStr.object,
-        
       },
     ];
   }
@@ -938,8 +913,8 @@ function mul(operands: OPERANDS): ValueNode[] {
     );
 
   if (
-    left.value_type == VSCTypeFlt.object ||
-    left.value_type == VSCTypeUInt.object
+    left.value_type == VSCTypeF64.object ||
+    left.value_type == VSCTypeU64.object
   ) {
     if (right.value_type == VSCTypeFun.object)
       throw Errors.ParserError('Not implemented.');
@@ -950,10 +925,10 @@ function mul(operands: OPERANDS): ValueNode[] {
     const value = (left.value as number) * (right.value as number);
 
     const type =
-      left.value_type === VSCTypeFlt.object ||
-      right.value_type === VSCTypeFlt.object
-        ? VSCTypeFlt.object
-        : VSCTypeUInt.object;
+      left.value_type === VSCTypeF64.object ||
+      right.value_type === VSCTypeF64.object
+        ? VSCTypeF64.object
+        : VSCTypeU64.object;
 
     return [
       {
@@ -962,7 +937,6 @@ function mul(operands: OPERANDS): ValueNode[] {
         location: Location.computed,
         value: value,
         value_type: type,
-        
       },
     ];
   }
@@ -985,8 +959,8 @@ function usub(operands: OPERANDS): ValueNode[] {
     throw Errors.SyntaxError('Wrong special token usage');
 
   if (
-    (right.value_type === VSCTypeFlt.object ||
-      right.value_type === VSCTypeUInt.object) &&
+    (right.value_type === VSCTypeF64.object ||
+      right.value_type === VSCTypeU64.object) &&
     right.NT === NT.value_num
   ) {
     if (right.value === NAN) return [{ ...right }];
@@ -1035,14 +1009,13 @@ function add(operands: OPERANDS): ValueNode[] {
         location: Location.computed,
         value: value,
         value_type: VSCTypeStr.object,
-        
       },
     ];
   }
 
   if (
-    left.value_type == VSCTypeFlt.object ||
-    left.value_type == VSCTypeUInt.object
+    left.value_type == VSCTypeF64.object ||
+    left.value_type == VSCTypeU64.object
   ) {
     if (right.value_type == VSCTypeFun.object)
       throw Errors.ParserError('Not implemented.');
@@ -1053,10 +1026,10 @@ function add(operands: OPERANDS): ValueNode[] {
     const value = (left.value as number) + (right.value as number);
 
     const type =
-      left.value_type === VSCTypeFlt.object ||
-      right.value_type === VSCTypeFlt.object
-        ? VSCTypeFlt.object
-        : VSCTypeUInt.object;
+      left.value_type === VSCTypeF64.object ||
+      right.value_type === VSCTypeF64.object
+        ? VSCTypeF64.object
+        : VSCTypeU64.object;
 
     return [
       {
@@ -1065,7 +1038,6 @@ function add(operands: OPERANDS): ValueNode[] {
         location: Location.computed,
         value: value,
         value_type: type,
-        
       },
     ];
   }
@@ -1092,8 +1064,8 @@ function sub(operands: OPERANDS): ValueNode[] {
     );
 
   if (
-    left.value_type == VSCTypeFlt.object ||
-    left.value_type == VSCTypeUInt.object
+    left.value_type == VSCTypeF64.object ||
+    left.value_type == VSCTypeU64.object
   ) {
     if (right.value_type == VSCTypeFun.object)
       throw Errors.ParserError('Not implemented.');
@@ -1104,10 +1076,10 @@ function sub(operands: OPERANDS): ValueNode[] {
     const value = (left.value as number) - (right.value as number);
 
     const type =
-      left.value_type === VSCTypeFlt.object ||
-      right.value_type === VSCTypeFlt.object
-        ? VSCTypeFlt.object
-        : VSCTypeUInt.object;
+      left.value_type === VSCTypeF64.object ||
+      right.value_type === VSCTypeF64.object
+        ? VSCTypeF64.object
+        : VSCTypeU64.object;
 
     return [
       {
@@ -1116,7 +1088,6 @@ function sub(operands: OPERANDS): ValueNode[] {
         location: Location.computed,
         value: value,
         value_type: type,
-        
       },
     ];
   }

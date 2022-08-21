@@ -1,4 +1,4 @@
-import { FunctionNode } from '../ast/nodes';
+import { FunctionNode, NodeType } from '../ast/nodes';
 
 class InstructionCounter {
   local_stack_offset: number;
@@ -8,6 +8,13 @@ class InstructionCounter {
   functions_stack: FunctionNode[];
   function_names: string[];
   statements: { [key: string]: number };
+
+  getStatementID(type: NodeType) {
+    let res = this.statements[type];
+    if (res === undefined) this.statements[type] = res = 0;
+    else res = this.statements[type] = res + 1;
+    return res;
+  }
 
   constructor() {
     this.local_stack_offset = 0;

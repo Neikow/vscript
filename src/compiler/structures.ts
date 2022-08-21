@@ -1,11 +1,16 @@
 interface VSCPointer {
-  this: VSCPointer
+  this: VSCPointer;
   value: number;
 }
 
 interface VSCNumber {
   this: VSCPointer
   value: number;
+}
+
+interface VSCBool {
+  this: VSCPointer;
+  value: 0 | 1;
 }
 
 interface VSCString {

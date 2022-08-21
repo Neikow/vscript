@@ -18,6 +18,7 @@ export class FunctionManger {
     text: string;
     functions: string;
     data: string;
+    rodata: string;
     bss: string;
   };
   constructor(
@@ -26,6 +27,7 @@ export class FunctionManger {
       text: string;
       functions: string;
       data: string;
+      rodata: string;
       bss: string;
     },
     instructions: Instructions,

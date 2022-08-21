@@ -1,3 +1,7 @@
+Name: boolean operatos
+Description: 
+
+Source: ```
 let x = true;
 debug 'true          ', x;
 
@@ -21,3 +25,31 @@ debug 'false !| false', false !| false;
 
 debug '!true         ', !true;
 debug '!false        ', !false;
+```
+
+Exit Code: ```
+0
+```
+
+Output (stdout): ```
+true           true
+false          false
+true && true   true
+true && false  false
+false && true  false
+false && false false
+true || true   true
+true || false  true
+false || true  true
+false || false false
+true !| true   false
+true !| false  true
+false !| true  true
+false !| false false
+!true          false
+!false         true
+```
+
+Output (stderr): ```
+
+```

@@ -377,8 +377,8 @@ export const typeChecker = (tree: SyntaxTree) => {
 
             if (
               l_type.type == r_type.type &&
-              (l_type.type == Types.uint.object ||
-                l_type.type === Types.float.object)
+              (l_type.type == Types.u64.object ||
+                l_type.type === Types.f64.object)
             ) {
               return {
                 success: true,
@@ -414,8 +414,8 @@ export const typeChecker = (tree: SyntaxTree) => {
             }
 
             if (
-              l_type.type !== Types.float.object &&
-              l_type.type !== Types.uint.object
+              l_type.type !== Types.f64.object &&
+              l_type.type !== Types.u64.object
             )
               throw Errors.NotImplemented('non number types');
 
@@ -750,8 +750,8 @@ export const typeChecker = (tree: SyntaxTree) => {
             }
 
             if (
-              type_node.type === Types.float.object ||
-              type_node.type === Types.uint.object
+              type_node.type === Types.f64.object ||
+              type_node.type === Types.u64.object
             ) {
               return {
                 success: true,
@@ -796,10 +796,73 @@ export const typeChecker = (tree: SyntaxTree) => {
               throw Errors.NotImplemented(index_type.NT);
             }
 
-            if (index_type.type !== Types.uint.object) {
+            if (index_type.type !== Types.u64.object) {
               throw Errors.NotImplemented('non integer index');
             }
 
+            return {
+              success: true,
+              found_return: false,
+              type_constraints: undefined,
+            };
+          }
+
+          case 'mul': {
+            if (!node.left) throw Errors.ParserError('Missing left operand');
+            if (!node.right) throw Errors.ParserError('Missing right operand');
+
+            const r_type = TypeHelper.getType(node.right, params);
+            const l_type = TypeHelper.getType(node.left, params);
+
+            if (r_type.NT === NT.type_union || l_type.NT === NT.type_union) {
+              throw Errors.NotImplemented(NT.type_union);
+            }
+
+            if (r_type.NT === NT.type_tuple || l_type.NT === NT.type_tuple) {
+              throw Errors.NotImplemented(NT.type_union);
+            }
+
+            if (
+              l_type.type === Types.string.object &&
+              r_type.type === Types.u64.object
+            ) {
+              return {
+                success: true,
+                found_return: false,
+                type_constraints: params.variable_types,
+              };
+            } else if (r_type.type === l_type.type) {
+              return {
+                success: true,
+                found_return: false,
+                type_constraints: params.variable_types,
+              };
+            }
+
+            return {
+              success: false,
+              found_return: false,
+              type_constraints: undefined,
+            };
+          }
+
+          case 'and':
+          case 'or':
+          case 'xor': {
+            if (!node.left) throw Errors.ParserError('Missing left operand');
+            if (!node.right) throw Errors.ParserError('Missing right operand');
+
+            return {
+              success: true,
+              found_return: false,
+              type_constraints: undefined,
+            };
+          }
+
+          case 'not': {
+            if (node.left) throw Errors.ParserError('Extraneous left operand');
+            if (!node.right) throw Errors.ParserError('Missing right operand');
+            
             return {
               success: true,
               found_return: false,
@@ -1027,12 +1090,12 @@ export const typeChecker = (tree: SyntaxTree) => {
           throw Errors.NotImplemented(NT.type_tuple);
         }
 
-        if (expression_type.type !== Types.uint.object)
+        if (expression_type.type !== Types.u64.object)
           throw Errors.TypeError(
             node.location,
             {
               NT: NT.type_single,
-              type: Types.uint.object,
+              type: Types.u64.object,
             },
             expression_type
           );

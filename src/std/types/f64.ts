@@ -6,11 +6,10 @@ import {
   NodeType,
 } from '../../ast/nodes';
 import { Location, TYPE_ANY, VSCType } from '../../types/types';
-
 import VSCTypeFun from './fun';
 
-class VSCTypeInt implements VSCType {
-  display: string = 'int';
+class VSCTypeF64 implements VSCType {
+  display: string = 'f64';
 
   object: LanguageObject = {
     NT: NodeType.language_object,
@@ -20,14 +19,13 @@ class VSCTypeInt implements VSCType {
     location: Location.std,
     is_struct: false,
     mutable: false,
-    properties: undefined,
     builtin_reference: this,
+    properties: undefined,
     parameters: {
       template_types: undefined,
       values: undefined,
     },
   };
-
   construct: FunctionValueNode = {
     is_builtin: true,
     location: Location.std,
@@ -47,7 +45,7 @@ class VSCTypeInt implements VSCType {
         },
       ],
       type_arguments: [],
-      name: 'int',
+      name: this.display,
       context: {
         definitions: new Map<string, LanguageDefinition>(),
         holder: undefined,
@@ -57,7 +55,7 @@ class VSCTypeInt implements VSCType {
         objects: new Map<string, LanguageObject>(),
         parent: undefined,
         type: ContextType.std,
-        label: 'constructor::int32',
+        label: `constructor::${this.display}`,
       },
       location: Location.std,
       NT: NodeType.function,
@@ -70,4 +68,4 @@ class VSCTypeInt implements VSCType {
   };
 }
 
-export default new VSCTypeInt();
+export default new VSCTypeF64();

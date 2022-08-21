@@ -54,8 +54,7 @@ export function compiler(tree: SyntaxTree, path: string) {
       ';     Generated assembly    \n' +
       '; --------------------------\n' +
       "\n%include\t'utils.asm'\n" +
-      "\n%include\t'std/types/strings.asm'\n" +
-      "\n%include\t'std/types/u64.asm'\n",
+      "\n%include\t'std/types.asm'\n",
     text:
       '\nsection .text\n' +
       'global  _start\n' +
@@ -71,6 +70,7 @@ export function compiler(tree: SyntaxTree, path: string) {
       I.call('memalloc') +
       '\n\n',
     functions: '',
+    rodata: "true: db 'true'\n" + "false: db 'false'\n",
     data: 'brk_init: dq 0x0\n' + 'brk_curr: dq 0x0\n' + 'brk_new: dq 0x0\n\n',
     bss: 'output_buffer: resb 128\n',
   };
@@ -90,6 +90,8 @@ export function compiler(tree: SyntaxTree, path: string) {
     asm.header +
       asm.text +
       asm.functions +
+      (asm.rodata === '' ? '' : '\nsection .rodata\n') +
+      asm.rodata +
       (asm.data === '' ? '' : '\nsection .data\n') +
       asm.data +
       (asm.bss === '' ? '' : '\nsection .bss\n') +
@@ -105,6 +107,17 @@ export function compiler(tree: SyntaxTree, path: string) {
       case NT.expression: {
         return parseExpression(node.member!, parent_context, register);
       }
+      case NT.literal_boolean: {
+        return [
+          {
+            before:
+              I.mov('rcx', node.value ? '1' : '0', 'bool value') +
+              I.call('bool_make') +
+              I.push('rax'),
+            on_update: '',
+          },
+        ];
+      }
       case NT.literal_string: {
         return [
           {
@@ -114,7 +127,7 @@ export function compiler(tree: SyntaxTree, path: string) {
         ];
       }
       case NT.literal_number: {
-        if (node.value_type !== Types.uint.object)
+        if (node.value_type !== Types.u64.object)
           throw Errors.NotImplemented(node.value_type.display_name);
         return [
           {
@@ -202,6 +215,134 @@ export function compiler(tree: SyntaxTree, path: string) {
       }
       case NT.operator: {
         switch (node.op) {
+          case 'and': {
+            if (!node.left || !node.right) throw Errors.CompilerError();
+            const l_type = TypeHelper.getType(node.left, undefined);
+            const r_type = TypeHelper.getType(node.right, undefined);
+            const left = parseExpression(node.left, parent_context, 'rax');
+            if (left.length > 1) throw Errors.NotImplemented();
+            const right = parseExpression(node.right, parent_context, 'rbx');
+            if (right.length > 1) throw Errors.NotImplemented();
+
+            if (l_type.NT !== NT.type_single || r_type.NT !== NT.type_single)
+              throw Errors.CompilerError();
+            if (typeof l_type.type === 'string') throw Errors.NotImplemented();
+            if (l_type.type !== r_type.type) throw Errors.NotImplemented();
+
+            if (
+              l_type.type.kind === LanguageObjectKind.instance ||
+              r_type.type.kind === LanguageObjectKind.instance
+            )
+              throw Errors.NotImplemented();
+
+            if (l_type.type === Types.bool.object) {
+              return [
+                {
+                  before:
+                    left[0].before +
+                    right[0].before +
+                    I.pop('rdx') +
+                    I.pop('rcx') +
+                    I.call('bool_and') +
+                    I.push('rax'),
+                  on_update: '',
+                },
+              ];
+            }
+          }
+          case 'or': {
+            if (!node.left || !node.right) throw Errors.CompilerError();
+            const l_type = TypeHelper.getType(node.left, undefined);
+            const r_type = TypeHelper.getType(node.right, undefined);
+            const left = parseExpression(node.left, parent_context, 'rax');
+            if (left.length > 1) throw Errors.NotImplemented();
+            const right = parseExpression(node.right, parent_context, 'rbx');
+            if (right.length > 1) throw Errors.NotImplemented();
+
+            if (l_type.NT !== NT.type_single || r_type.NT !== NT.type_single)
+              throw Errors.CompilerError();
+            if (typeof l_type.type === 'string') throw Errors.NotImplemented();
+            if (l_type.type !== r_type.type) throw Errors.NotImplemented();
+
+            if (
+              l_type.type.kind === LanguageObjectKind.instance ||
+              r_type.type.kind === LanguageObjectKind.instance
+            )
+              throw Errors.NotImplemented();
+
+            if (l_type.type === Types.bool.object) {
+              return [
+                {
+                  before:
+                    left[0].before +
+                    right[0].before +
+                    I.pop('rdx') +
+                    I.pop('rcx') +
+                    I.call('bool_or') +
+                    I.push('rax'),
+                  on_update: '',
+                },
+              ];
+            }
+          }
+          case 'xor': {
+            if (!node.left || !node.right) throw Errors.CompilerError();
+            const l_type = TypeHelper.getType(node.left, undefined);
+            const r_type = TypeHelper.getType(node.right, undefined);
+            const left = parseExpression(node.left, parent_context, 'rax');
+            if (left.length > 1) throw Errors.NotImplemented();
+            const right = parseExpression(node.right, parent_context, 'rbx');
+            if (right.length > 1) throw Errors.NotImplemented();
+
+            if (l_type.NT !== NT.type_single || r_type.NT !== NT.type_single)
+              throw Errors.CompilerError();
+            if (typeof l_type.type === 'string') throw Errors.NotImplemented();
+            if (l_type.type !== r_type.type) throw Errors.NotImplemented();
+
+            if (
+              l_type.type.kind === LanguageObjectKind.instance ||
+              r_type.type.kind === LanguageObjectKind.instance
+            )
+              throw Errors.NotImplemented();
+
+            if (l_type.type === Types.bool.object) {
+              return [
+                {
+                  before:
+                    left[0].before +
+                    right[0].before +
+                    I.pop('rdx') +
+                    I.pop('rcx') +
+                    I.call('bool_xor') +
+                    I.push('rax'),
+                  on_update: '',
+                },
+              ];
+            }
+          }
+          case 'not': {
+            if (node.left) throw Errors.CompilerError();
+            if (!node.right) throw Errors.CompilerError();
+            const r_type = TypeHelper.getType(node.right, undefined);
+            const right = parseExpression(node.right, parent_context, 'rbx');
+            if (right.length > 1) throw Errors.NotImplemented();
+
+            if (r_type.NT !== NT.type_single) throw Errors.CompilerError();
+            if (typeof r_type.type === 'string') throw Errors.NotImplemented();
+
+            if (r_type.type === Types.bool.object) {
+              return [
+                {
+                  before:
+                    right[0].before +
+                    I.pop('rcx') +
+                    I.call('bool_not') +
+                    I.push('rax'),
+                  on_update: '',
+                },
+              ];
+            }
+          }
           case 'add': {
             if (!node.left || !node.right) throw Errors.CompilerError();
             const l_type = TypeHelper.getType(node.left, undefined);
@@ -235,7 +376,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                   on_update: '',
                 },
               ];
-            } else if (l_type.type === Types.uint.object) {
+            } else if (l_type.type === Types.u64.object) {
               return [
                 {
                   before:
@@ -244,6 +385,43 @@ export function compiler(tree: SyntaxTree, path: string) {
                     I.pop('rdx') +
                     I.pop('rcx') +
                     I.call('u64_add_u64') +
+                    I.push('rax'),
+                  on_update: '',
+                },
+              ];
+            } else {
+              throw Errors.NotImplemented(TypeHelper.formatType(l_type));
+            }
+          }
+          case 'sub': {
+            if (!node.left || !node.right) throw Errors.CompilerError();
+            const l_type = TypeHelper.getType(node.left, undefined);
+            const r_type = TypeHelper.getType(node.right, undefined);
+            const left = parseExpression(node.left, parent_context, 'rax');
+            if (left.length > 1) throw Errors.NotImplemented();
+            const right = parseExpression(node.right, parent_context, 'rbx');
+            if (right.length > 1) throw Errors.NotImplemented();
+
+            if (l_type.NT !== NT.type_single || r_type.NT !== NT.type_single)
+              throw Errors.CompilerError();
+            if (typeof l_type.type === 'string') throw Errors.NotImplemented();
+            if (l_type.type !== r_type.type) throw Errors.CompilerError();
+
+            if (
+              l_type.type.kind === LanguageObjectKind.instance ||
+              r_type.type.kind === LanguageObjectKind.instance
+            )
+              throw Errors.NotImplemented();
+
+            if (l_type.type === Types.u64.object) {
+              return [
+                {
+                  before:
+                    left[0].before +
+                    right[0].before +
+                    I.pop('rdx') +
+                    I.pop('rcx') +
+                    I.call('u64_sub_u64') +
                     I.push('rax'),
                   on_update: '',
                 },
@@ -288,6 +466,112 @@ export function compiler(tree: SyntaxTree, path: string) {
               ];
             } else {
               throw Errors.NotImplemented(TypeHelper.formatType(l_type));
+            }
+          }
+          case 'mul': {
+            if (!node.left || !node.right) throw Errors.CompilerError();
+            const l_type = TypeHelper.getType(node.left, undefined);
+            const r_type = TypeHelper.getType(node.right, undefined);
+            const left = parseExpression(node.left, parent_context, 'rax');
+            if (left.length > 1) throw Errors.NotImplemented();
+            const right = parseExpression(node.right, parent_context, 'rbx');
+            if (right.length > 1) throw Errors.NotImplemented();
+
+            if (l_type.NT !== NT.type_single || r_type.NT !== NT.type_single)
+              throw Errors.CompilerError();
+            if (typeof l_type.type === 'string') throw Errors.NotImplemented();
+            if (
+              l_type.type === Types.string.object &&
+              r_type.type === Types.u64.object
+            ) {
+              return [
+                {
+                  before:
+                    left[0].before +
+                    right[0].before +
+                    I.pop('rdx') +
+                    I.mov('rdx', '[rdx + 2 * 8]') +
+                    I.pop('rcx') +
+                    I.call('string_repeat') +
+                    I.push('rax'),
+                  on_update: '',
+                },
+              ];
+            }
+
+            if (l_type.type !== r_type.type) throw Errors.NotImplemented();
+
+            if (
+              l_type.type.kind === LanguageObjectKind.instance ||
+              r_type.type.kind === LanguageObjectKind.instance
+            )
+              throw Errors.NotImplemented();
+
+            if (l_type.type === Types.u64.object) {
+              return [
+                {
+                  before:
+                    left[0].before +
+                    right[0].before +
+                    I.pop('rdx') +
+                    I.pop('rcx') +
+                    I.call('u64_mul_u64') +
+                    I.push('rax'),
+                  on_update: '',
+                },
+              ];
+            } else {
+              throw Errors.NotImplemented(TypeHelper.formatType(l_type));
+            }
+          }
+          case 'access_property': {
+            if (!node.left || !node.right) throw Errors.CompilerError();
+
+            if (node.right.NT !== NT.property_node)
+              throw Errors.CompilerError();
+
+            if (
+              node.left.NT === NT.operator &&
+              node.left.op === 'access_property'
+            )
+              throw Errors.NotImplemented('access operator expression');
+
+            if (node.left.NT !== NT.reference) throw Errors.CompilerError();
+
+            const [ref, stack] = TypeHelper.getPropertyStack(node);
+
+            if (ref.definition.type?.NT !== NT.type_single)
+              throw Errors.CompilerError();
+            if (typeof ref.definition.type.type === 'string')
+              throw Errors.NotImplemented();
+            if (ref.definition.type.type.kind === LanguageObjectKind.instance)
+              throw Errors.NotImplemented();
+
+            const res = parseExpression(node.left, parent_context, register);
+
+            if (res.length > 1) throw Errors.NotImplemented('tuples');
+
+            if (stack.length > 1) throw Errors.CompilerError();
+
+            if (
+              stack[0] === 'length' &&
+              ref.definition.type.type === Types.string.object
+            ) {
+              return [
+                {
+                  before:
+                    res[0].before +
+                    I.pop('rax') +
+                    I.mov('rcx', '[rax + 2 * 8]', 'string length') +
+                    I.call('u64_make', 'convert length to object') +
+                    I.push('rax'),
+                  on_update: '',
+                },
+              ];
+            } else {
+              throw Errors.NotImplemented(
+                `${ref.definition.name} with property stack ${stack}`
+              );
             }
           }
           default: {
@@ -410,6 +694,18 @@ export function compiler(tree: SyntaxTree, path: string) {
 
         return code;
       }
+      // case NT.statement_while: {
+      //   let id = counter.getStatementID(node.NT);
+
+      //   const label_success = `while${id}`;
+      //   const label_fail = `end_while${id}`;
+
+      //   if (!node.child) throw Errors.CompilerError();
+      //   if (!node.condition) throw Errors.CompilerError();
+
+      //   const body = aux(node.child, node.child);
+
+      // }
       default:
         throw Errors.NotImplemented(node.NT);
     }

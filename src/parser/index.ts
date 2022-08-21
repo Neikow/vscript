@@ -591,13 +591,23 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
 
       return { NT: AST.NodeType.type_raw, types: [type] };
     } else if (
-      accept(TK.keyword, ['str', 'int', 'flt', 'ptr', 'bool', 'any'])
+      accept(TK.keyword, [
+        'str',
+        'i64',
+        'u64',
+        'f64',
+        'f128',
+        'ptr',
+        'bool',
+        'any',
+      ])
     ) {
       const type_map = {
         bool: Types.bool.object,
         str: Types.string.object,
-        int: Types.uint.object,
-        flt: Types.float.object,
+        i64: Types.i64.object,
+        u64: Types.u64.object,
+        f64: Types.f64.object,
       };
 
       if (curr_tok?.val === 'ptr') throw Errors.NotImplemented('pointers');
@@ -836,8 +846,8 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
         location: curr_tok!.loc,
         value_type:
           curr_tok!.kind == TK.literal_number_int
-            ? Types.uint.object
-            : Types.float.object,
+            ? Types.u64.object
+            : Types.f64.object,
         value: curr_tok!.val,
       };
       next();
@@ -907,7 +917,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
             NT: AST.NodeType.literal_number,
             location: curr_tok!.loc,
             value: NAN,
-            value_type: Types.float.object,
+            value_type: Types.f64.object,
           };
           next();
           return res;
@@ -946,11 +956,14 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
       const access_node = access(res);
       if (access_node) return access_node;
       return res;
-    } else if (accept(TK.keyword, ['bool', 'int', 'str', 'flt', 'ptr'])) {
+    } else if (
+      accept(TK.keyword, ['bool', 'i64', 'u64', 'str', 'f64', 'ptr'])
+    ) {
       const type_map = {
         bool: Types.bool,
-        int: Types.uint,
-        flt: Types.float,
+        i64: Types.i64,
+        u64: Types.u64,
+        f64: Types.f64,
         str: Types.string,
         ptr: Types.pointer,
       };

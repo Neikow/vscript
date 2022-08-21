@@ -9,8 +9,8 @@ import { Location, TYPE_ANY, VSCType } from '../../types/types';
 
 import VSCTypeFun from './fun';
 
-class VSCTypeUInt implements VSCType {
-  display: string = 'uint';
+class VSCTypeU64 implements VSCType {
+  display: string = 'u64';
 
   object: LanguageObject = {
     NT: NodeType.language_object,
@@ -47,7 +47,7 @@ class VSCTypeUInt implements VSCType {
         },
       ],
       type_arguments: [],
-      name: 'uint',
+      name: this.display,
       context: {
         definitions: new Map<string, LanguageDefinition>(),
         holder: undefined,
@@ -57,7 +57,7 @@ class VSCTypeUInt implements VSCType {
         objects: new Map<string, LanguageObject>(),
         parent: undefined,
         type: ContextType.std,
-        label: 'constructor::uint32',
+        label: `constructor::${this.display}`,
       },
       location: Location.std,
       NT: NodeType.function,
@@ -70,4 +70,4 @@ class VSCTypeUInt implements VSCType {
   };
 }
 
-export default new VSCTypeUInt();
+export default new VSCTypeU64();

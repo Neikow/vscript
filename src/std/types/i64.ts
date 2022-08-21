@@ -5,19 +5,12 @@ import {
   LanguageDefinition,
   NodeType,
 } from '../../ast/nodes';
-import {
-  TYPE_BOOLEAN,
-  Location,
-  TYPE_FUNCTION,
-  TYPE_ANY,
-  VSCType,
-  TYPE_FLOAT,
-} from '../../types/types';
-import TypeHelper from '../../types/helper';
+import { Location, TYPE_ANY, VSCType } from '../../types/types';
+
 import VSCTypeFun from './fun';
 
-class VSCTypeFlt implements VSCType {
-  display: string = 'flt';
+class VSCTypeI64 implements VSCType {
+  display: string = 'i64';
 
   object: LanguageObject = {
     NT: NodeType.language_object,
@@ -27,13 +20,14 @@ class VSCTypeFlt implements VSCType {
     location: Location.std,
     is_struct: false,
     mutable: false,
-    builtin_reference: this,
     properties: undefined,
+    builtin_reference: this,
     parameters: {
       template_types: undefined,
       values: undefined,
     },
   };
+
   construct: FunctionValueNode = {
     is_builtin: true,
     location: Location.std,
@@ -53,7 +47,7 @@ class VSCTypeFlt implements VSCType {
         },
       ],
       type_arguments: [],
-      name: 'flt',
+      name: this.display,
       context: {
         definitions: new Map<string, LanguageDefinition>(),
         holder: undefined,
@@ -63,7 +57,7 @@ class VSCTypeFlt implements VSCType {
         objects: new Map<string, LanguageObject>(),
         parent: undefined,
         type: ContextType.std,
-        label: 'constructor::flt',
+        label: `constructor::${this.display}`,
       },
       location: Location.std,
       NT: NodeType.function,
@@ -76,4 +70,4 @@ class VSCTypeFlt implements VSCType {
   };
 }
 
-export default new VSCTypeFlt();
+export default new VSCTypeI64();

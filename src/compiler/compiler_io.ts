@@ -51,7 +51,7 @@ export class CompilerIO {
           '\n'
         );
       }
-      case Types.uint.object: {
+      case Types.u64.object: {
         const res = this.expressionParser(node, parent_context, 'rax');
         if (res.length > 1) throw Errors.NotImplemented('tuples');
 
@@ -63,6 +63,21 @@ export class CompilerIO {
           this.instructions.pop('rcx') +
           this.instructions.mov('rcx', '[rcx + 2 * 8]') +
           this.instructions.call(line_feed ? 'iprintLF' : 'iprint') +
+          '\n'
+        );
+      }
+      case Types.bool.object: {
+        const res = this.expressionParser(node, parent_context, 'rax');
+        if (res.length > 1) throw Errors.NotImplemented('tuples');
+
+        const { before } = res[0];
+
+        return (
+          (comment ? `\t; statement_debug (bool)\n` : '') +
+          before +
+          this.instructions.pop('rcx') +
+          this.instructions.mov('rcx', '[rcx + 2 * 8]') +
+          this.instructions.call(line_feed ? 'bprintLF' : 'bprint') +
           '\n'
         );
       }

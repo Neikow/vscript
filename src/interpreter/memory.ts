@@ -148,7 +148,7 @@ export class Memory {
             NT: NT.value_num,
             value: 1,
             location: Location.std,
-            value_type: Types.uint.object,
+            value_type: Types.u64.object,
             is_builtin: false,
           },
           location: node.location,
@@ -287,7 +287,7 @@ export class Memory {
       const val =
         node.value === NAN
           ? NAN
-          : node.value_type == Types.float.object
+          : node.value_type == Types.f64.object
           ? parseFloat(node.value)
           : parseInt(node.value);
       return [

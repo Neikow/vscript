@@ -96,8 +96,8 @@ export const interpreter = (tree: SyntaxTree) => {
           return [chalk.magentaBright('false'), -1];
         }
       } else if (
-        node.value_type === Types.float.object ||
-        node.value_type === Types.uint.object
+        node.value_type === Types.f64.object ||
+        node.value_type === Types.u64.object
       ) {
         return [chalk.blueBright(node.value), -1];
       } else if (node.value_type === Types.string.object) {

@@ -669,7 +669,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
       case NT.literal_number: {
         if (node.value === NAN || node.value === INFINITY)
           throw Errors.NotImplemented();
-        if (node.value_type === Types.float.object)
+        if (node.value_type === Types.f64.object)
           throw Errors.NotImplemented('floats');
         return [
           {
@@ -844,7 +844,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
           return aux(node.member, depth + 1, pointer);
         }
         case NT.literal_number: {
-          if (node.value_type !== Types.uint.object)
+          if (node.value_type !== Types.u64.object)
             throw Errors.NotImplemented();
           if (node.value === NAN || node.value === INFINITY)
             throw Errors.NotImplemented();
@@ -1219,9 +1219,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
         return val[0].before + val[0].after + val[0].on_update;
       }
       case NT.statement_while: {
-        let loop_idx = statements_counter[node.NT];
-        if (loop_idx === undefined) statements_counter[node.NT] = loop_idx = 0;
-        else loop_idx = statements_counter[node.NT] = loop_idx + 1;
+        
 
         const label_success = `while${loop_idx}`;
         const label_fail = `end_while${loop_idx}`;
@@ -1362,7 +1360,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
           indent + 1
         );
       else {
-        if (prop.type.type === Types.uint.object) {
+        if (prop.type.type === Types.u64.object) {
           code +=
             mov('eax', `[${pointer} - ${pointer_offset + offset}]`) +
             call('iprintLF');
@@ -1423,7 +1421,7 @@ export const compiler = (tree: SyntaxTree, path: string) => {
     }
 
     switch (type_node.type) {
-      case Types.uint.object: {
+      case Types.u64.object: {
         const res = parseExpression(node, parent_context, 'eax');
         if (res.length > 1) throw Errors.NotImplemented('tuples');
 

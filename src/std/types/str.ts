@@ -13,7 +13,7 @@ import {
 import { Location, TYPE_ANY, VSCType } from '../../types/types';
 
 import VSCTypeFun from './fun';
-import VSCTypeUInt from './uint';
+import VSCTypeU64 from './u64';
 
 class VSCTypeStr implements VSCType {
   display: string = 'str';
@@ -28,7 +28,7 @@ class VSCTypeStr implements VSCType {
       optional: false,
       type: {
         NT: NodeType.type_single,
-        type: VSCTypeUInt.object,
+        type: VSCTypeU64.object,
       },
     },
   };

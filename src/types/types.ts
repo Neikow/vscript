@@ -160,9 +160,11 @@ export const KEYWORDS = [
 
   // types
   'str',
-  'int',
+  'i64',
+  'u64',
   'fun',
-  'flt',
+  'f64',
+  'f128',
   'ptr',
   'bool',
   'any',

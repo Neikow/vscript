@@ -327,26 +327,26 @@ const TypeHelper = {
             }
 
             if (
-              rTypeNode.type == Types.uint.object &&
-              lTypeNode.type == Types.uint.object
+              rTypeNode.type == Types.u64.object &&
+              lTypeNode.type == Types.u64.object
             ) {
               return {
                 NT: NT.type_single,
-                type: Types.uint.object,
+                type: Types.u64.object,
               };
             } else if (
-              (rTypeNode.type == Types.uint.object ||
-                rTypeNode.type === Types.uint.object) &&
-              (lTypeNode.type == Types.float.object ||
-                lTypeNode.type === Types.float.object)
+              (rTypeNode.type == Types.u64.object ||
+                rTypeNode.type === Types.u64.object) &&
+              (lTypeNode.type == Types.f64.object ||
+                lTypeNode.type === Types.f64.object)
             ) {
               return {
                 NT: NT.type_single,
-                type: Types.float.object,
+                type: Types.f64.object,
               };
             } else if (
               lTypeNode.type == Types.string.object &&
-              rTypeNode.type == Types.uint.object
+              rTypeNode.type == Types.u64.object
             ) {
               return {
                 NT: NT.type_single,
@@ -377,22 +377,22 @@ const TypeHelper = {
             }
 
             if (
-              rTypeNode.type == Types.uint.object &&
-              lTypeNode.type == Types.uint.object
+              rTypeNode.type == Types.u64.object &&
+              lTypeNode.type == Types.u64.object
             ) {
               return {
                 NT: NT.type_single,
-                type: Types.uint.object,
+                type: Types.u64.object,
               };
             } else if (
-              (rTypeNode.type == Types.float.object ||
-                rTypeNode.type === Types.uint.object) &&
-              (lTypeNode.type == Types.float.object ||
-                lTypeNode.type === Types.uint.object)
+              (rTypeNode.type == Types.f64.object ||
+                rTypeNode.type === Types.u64.object) &&
+              (lTypeNode.type == Types.f64.object ||
+                lTypeNode.type === Types.u64.object)
             ) {
               return {
                 NT: NT.type_single,
-                type: Types.float.object,
+                type: Types.f64.object,
               };
             } else if (
               lTypeNode.type == Types.string.object &&
@@ -433,22 +433,22 @@ const TypeHelper = {
             }
 
             if (
-              rTypeNode.type == Types.uint.object &&
-              lTypeNode.type == Types.uint.object
+              rTypeNode.type == Types.u64.object &&
+              lTypeNode.type == Types.u64.object
             ) {
               return {
                 NT: NT.type_single,
-                type: Types.uint.object,
+                type: Types.u64.object,
               };
             } else if (
-              (rTypeNode.type == Types.float.object ||
-                rTypeNode.type === Types.uint.object) &&
-              (lTypeNode.type == Types.float.object ||
-                lTypeNode.type === Types.uint.object)
+              (rTypeNode.type == Types.f64.object ||
+                rTypeNode.type === Types.u64.object) &&
+              (lTypeNode.type == Types.f64.object ||
+                lTypeNode.type === Types.u64.object)
             ) {
               return {
                 NT: NT.type_single,
-                type: Types.float.object,
+                type: Types.f64.object,
               };
             }
 
@@ -470,8 +470,8 @@ const TypeHelper = {
             }
 
             if (
-              rTypeNode.type === Types.uint.object ||
-              rTypeNode.type === Types.float.object
+              rTypeNode.type === Types.u64.object ||
+              rTypeNode.type === Types.f64.object
             ) {
               return {
                 NT: NT.type_single,
@@ -498,8 +498,8 @@ const TypeHelper = {
             }
 
             if (
-              lTypeNode.type === Types.uint.object ||
-              lTypeNode.type === Types.float.object
+              lTypeNode.type === Types.u64.object ||
+              lTypeNode.type === Types.f64.object
             ) {
               return {
                 NT: NT.type_single,
@@ -670,7 +670,7 @@ const TypeHelper = {
               location: Location.computed,
               is_builtin: false,
               value: length,
-              value_type: Types.uint.object,
+              value_type: Types.u64.object,
             },
           }
         );
@@ -1075,7 +1075,7 @@ const TypeHelper = {
           if (val.NT !== NT.literal_number)
             throw Errors.NotImplemented('non number argument');
 
-          if (val.value_type !== Types.uint.object) {
+          if (val.value_type !== Types.u64.object) {
             throw Errors.SyntaxError('Wrong array length argument');
           }
 

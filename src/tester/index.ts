@@ -95,7 +95,7 @@ export class Tester {
     exec(
       `cd ./tests/${test_name_foramatted} && arch runp nasm -i \"${path.resolve(
         './asm'
-      )}\" -felf \"./out.asm\" && arch runp ld -m elf_i386 \"./out.o\" -o \"./out\" && arch runp rm \"./out.o\" && arch runp ./out`,
+      )}\" -felf64 \"./out.asm\" && arch runp ld \"./out.o\" -o \"./out\" && arch runp rm \"./out.o\" && arch runp ./out`,
       (error, stdout, stderr) => {
         console.log(
           `\nExit Code: ${error?.code ?? 0}\n- - -\nOutput:\n` +
@@ -161,7 +161,7 @@ export class Tester {
     exec(
       `cd ./tests/${test} && arch runp nasm -i \"${path.resolve(
         './asm'
-      )}\" -felf \"./asm.asm\" && arch runp ld -m elf_i386 \"./asm.o\" -o \"./asm\" && arch runp rm \"./asm.o\" && arch runp ./asm`,
+      )}\" -felf64 \"./asm.asm\" && arch runp ld \"./asm.o\" -o \"./asm\" && arch runp rm \"./asm.o\" && arch runp ./asm`,
       (error, stdout, stderr) => {
         const _exit_code = normalizeString(`${error?.code ?? 0}`);
         const _stdout = normalizeString(stdout);

@@ -10,6 +10,7 @@ export class StringManager {
     text: string;
     functions: string;
     data: string;
+    rodata: string;
     bss: string;
   };
 
@@ -19,6 +20,7 @@ export class StringManager {
       text: string;
       functions: string;
       data: string;
+      rodata: string;
       bss: string;
     },
     instructions: Instructions
@@ -35,7 +37,7 @@ export class StringManager {
       id = this.strings[str];
     } else {
       id = `_s${this.string_count++}`;
-      this.assembly.data +=
+      this.assembly.rodata +=
         `${id}: db ${str
           .split('\\n')
           .map((s) => `'${s}'`)
