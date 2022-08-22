@@ -55,7 +55,7 @@ export class Tester {
 
     const source = readFileSync(main_path, 'utf-8');
     const tree = new SyntaxTree(main_path, source);
-    
+
     tree.type_check();
 
     while (!is_test_name_valid) {

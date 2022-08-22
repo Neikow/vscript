@@ -1,0 +1,40 @@
+Name: array push, pop
+Description: 
+
+Source: ```
+let x: u64[8] = [0, 1, 2, 3, 4, 5];
+
+debug x.length;
+
+debug x;
+
+debug x.push(10);
+
+x.push(20);
+
+debug x;
+
+debug x.pop();
+
+debug x;
+
+debug x.length;
+```
+
+Exit Code: ```
+0
+```
+
+Output (stdout): ```
+6
+[0, 1, 2, 3, 4, 5]
+7
+[0, 1, 2, 3, 4, 5, 10, 20]
+20
+[0, 1, 2, 3, 4, 5, 10]
+7
+```
+
+Output (stderr): ```
+
+```

@@ -114,7 +114,7 @@ export class CompilerIO {
         const { before } = res[0];
 
         return (
-          (comment ? `\t; statement_debug (int)\n` : '') +
+          (comment ? `\t; statement_debug (u64)\n` : '') +
           before +
           this.instructions.pop('rcx') +
           this.instructions.call('u64_stdout') +

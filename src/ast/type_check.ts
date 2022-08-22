@@ -1,7 +1,13 @@
 import chalk from 'chalk';
 import { SyntaxTree } from '.';
 import { Errors } from '../errors';
-import { LanguageObject, LanguageObjectInstance, LanguageObjectKind, PropertyKind } from '../types/objects';
+import {
+  LanguageObject,
+  LanguageObjectInstance,
+  LanguageObjectKind,
+  ObjectProperty,
+  PropertyKind,
+} from '../types/objects';
 import { Types } from '../std/types';
 import {
   ContextNode,
@@ -714,8 +720,36 @@ export const typeChecker = (tree: SyntaxTree) => {
                 if (
                   node.left.definition.type.type.kind ===
                   LanguageObjectKind.instance
-                )
-                  throw Errors.NotImplemented('instance');
+                ) {
+                  let object_property: ObjectProperty | undefined;
+                  if (node.left.definition.type.type.properties_overrides)
+                    object_property =
+                      node.left.definition.type.type.properties_overrides.get(
+                        node.right.value
+                      );
+                  if (node.left.definition.type.type.object.properties) {
+                    object_property =
+                      node.left.definition.type.type.object.properties.get(
+                        node.right.value
+                      );
+                  } else {
+                    Errors.MissingProperty(
+                      node.left.definition.type,
+                      node.right.value
+                    );
+                  }
+                  if (!object_property)
+                    throw Errors.MissingProperty(
+                      node.left.definition.type,
+                      node.right.value
+                    );
+
+                  return {
+                    success: true,
+                    found_return: false,
+                    type_constraints: params.variable_types,
+                  };
+                }
 
                 if (!node.left.definition.type.type.properties) {
                   throw Errors.MissingProperty(

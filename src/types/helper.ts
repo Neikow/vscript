@@ -284,7 +284,8 @@ const TypeHelper = {
                 value = target_type_node.type.properties_overrides!.get(
                   node.right.value
                 );
-              } else {
+              }
+              if (!value) {
                 value = target_type_node.type.object.properties.get(
                   node.right.value
                 );

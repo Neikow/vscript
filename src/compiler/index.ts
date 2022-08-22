@@ -181,7 +181,8 @@ export function compiler(tree: SyntaxTree, path: string) {
         return [
           {
             before:
-              strings.add(node.value).before + should_push ? I.push('rax') : '',
+              strings.add(node.value).before +
+              (should_push ? I.push('rax') : ''),
             call: '',
             on_update: '',
           },
@@ -318,9 +319,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     I.pop('rdx') +
                     I.pop('rcx') +
                     I.call('bool_and') +
-                    should_push
-                      ? I.push('rax')
-                      : '',
+                    (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
                 },
@@ -366,9 +365,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     I.pop('rdx') +
                     I.pop('rcx') +
                     I.call('bool_or') +
-                    should_push
-                      ? I.push('rax')
-                      : '',
+                    (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
                 },
@@ -414,9 +411,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     I.pop('rdx') +
                     I.pop('rcx') +
                     I.call('bool_xor') +
-                    should_push
-                      ? I.push('rax')
-                      : '',
+                    (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
                 },
@@ -445,9 +440,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     right[0].before +
                     I.pop('rcx') +
                     I.call('bool_not') +
-                    should_push
-                      ? I.push('rax')
-                      : '',
+                    (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
                 },
@@ -493,9 +486,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     I.pop('rdx') +
                     I.pop('rcx') +
                     I.call('string_concat') +
-                    should_push
-                      ? I.push('rax')
-                      : '',
+                    (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
                 },
@@ -509,9 +500,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     I.pop('rdx') +
                     I.pop('rcx') +
                     I.call('u64_add_u64') +
-                    should_push
-                      ? I.push('rax')
-                      : '',
+                    (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
                 },
@@ -559,9 +548,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     I.pop('rdx') +
                     I.pop('rcx') +
                     I.call('u64_sub_u64') +
-                    should_push
-                      ? I.push('rax')
-                      : '',
+                    (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
                 },
@@ -655,9 +642,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     I.mov('rdx', '[rdx + 2 * 8]') +
                     I.pop('rcx') +
                     I.call('string_repeat') +
-                    should_push
-                      ? I.push('rax')
-                      : '',
+                    (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
                 },
@@ -681,9 +666,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     I.pop('rdx') +
                     I.pop('rcx') +
                     I.call('u64_mul_u64') +
-                    should_push
-                      ? I.push('rax')
-                      : '',
+                    (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
                 },
@@ -733,9 +716,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                       I.pop('rax') +
                       I.mov('rcx', '[rax + 2 * 8]', 'string length') +
                       I.call('u64_make', 'convert length to object') +
-                      should_push
-                        ? I.push('rax')
-                        : '',
+                      (should_push ? I.push('rax') : ''),
                     call: '',
                     on_update: '',
                   },
@@ -752,9 +733,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                       I.pop('rax') +
                       I.mov('rcx', '[rax + 3 * 8]', 'array length') +
                       I.call('u64_make', 'convert length to object') +
-                      should_push
-                        ? I.push('rax')
-                        : '',
+                      (should_push ? I.push('rax') : ''),
                     call: '',
                     on_update: '',
                   },
