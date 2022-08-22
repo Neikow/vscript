@@ -1,9 +1,13 @@
 import { ExpressionParser, ParseResult } from '.';
-import { ContextNode, Node, SingleTypeNode } from '../ast/nodes';
+import { ContextNode, Node, NodeType, SingleTypeNode } from '../ast/nodes';
 import { Errors } from '../errors';
 import { Types } from '../std/types';
 import TypeHelper from '../types/helper';
-import { LanguageObjectKind } from '../types/objects';
+import {
+  LanguageObject,
+  LanguageObjectInstance,
+  LanguageObjectKind,
+} from '../types/objects';
 import { Instructions } from './instructions';
 
 export class CompilerIO {
@@ -32,9 +36,62 @@ export class CompilerIO {
 
     // }
 
+    if (type_node.type.kind === LanguageObjectKind.instance) {
+      switch (type_node.type.object) {
+        case Types.array.object: {
+          const res = this.expressionParser(node, parent_context, 'rcx', false);
+          if (res.length > 1) throw Errors.NotImplemented('tuples');
+
+          const { before } = res[0];
+
+          const member_type = (
+            type_node.type.type_properties as Map<
+              string,
+              LanguageObjectInstance | LanguageObject
+            >
+          ).get('type');
+          if (!member_type) throw Errors.CompilerError();
+          let printing_function: string;
+          switch (member_type) {
+            case Types.bool.object:
+              printing_function = 'bool_stdout';
+              break;
+            case Types.u64.object:
+              printing_function = 'u64_stdout';
+              break;
+            case Types.string.object:
+              printing_function = 'string_stdout';
+              break;
+            default:
+              throw Errors.NotImplemented(
+                TypeHelper.formatType({
+                  NT: NodeType.type_single,
+                  type: member_type,
+                })
+              );
+          }
+
+          return (
+            (comment ? `\t; statement_debug (array)\n` : '') +
+            before +
+            this.instructions.mov(
+              'rdx',
+              printing_function,
+              'printing function address'
+            ) +
+            this.instructions.call('array_stdout') +
+            (line_feed ? this.instructions.call('linefeed') : '') +
+            '\n'
+          );
+        }
+        default:
+          throw Errors.NotImplemented(TypeHelper.formatType(type_node));
+      }
+    }
+
     switch (type_node.type) {
       case Types.string.object: {
-        const res = this.expressionParser(node, parent_context, 'rax');
+        const res = this.expressionParser(node, parent_context, 'rcx', true);
         if (res.length > 1) throw Errors.NotImplemented('tuples');
 
         const { before } = res[0];
@@ -44,30 +101,29 @@ export class CompilerIO {
         return (
           (comment ? `\t; statement_debug (str)\n` : '') +
           before +
-          this.instructions.pop('rsi') +
-          this.instructions.mov('rdx', '[rsi + 16]', 'string length') +
-          this.instructions.mov('rcx', '[rsi + 24]', 'char array pointer') +
-          this.instructions.call(line_feed ? 'sprintLF' : 'sprint') +
+          this.instructions.pop('rcx') +
+          this.instructions.call('string_stdout') +
+          (line_feed ? this.instructions.call('linefeed') : '') +
           '\n'
         );
       }
       case Types.u64.object: {
-        const res = this.expressionParser(node, parent_context, 'rax');
+        const res = this.expressionParser(node, parent_context, 'rcx', true);
         if (res.length > 1) throw Errors.NotImplemented('tuples');
 
         const { before } = res[0];
 
         return (
-          (comment ? `\t; statement_debug (str)\n` : '') +
+          (comment ? `\t; statement_debug (int)\n` : '') +
           before +
           this.instructions.pop('rcx') +
-          this.instructions.mov('rcx', '[rcx + 2 * 8]') +
-          this.instructions.call(line_feed ? 'iprintLF' : 'iprint') +
+          this.instructions.call('u64_stdout') +
+          (line_feed ? this.instructions.call('linefeed') : '') +
           '\n'
         );
       }
       case Types.bool.object: {
-        const res = this.expressionParser(node, parent_context, 'rax');
+        const res = this.expressionParser(node, parent_context, 'rcx', true);
         if (res.length > 1) throw Errors.NotImplemented('tuples');
 
         const { before } = res[0];
@@ -76,8 +132,8 @@ export class CompilerIO {
           (comment ? `\t; statement_debug (bool)\n` : '') +
           before +
           this.instructions.pop('rcx') +
-          this.instructions.mov('rcx', '[rcx + 2 * 8]') +
-          this.instructions.call(line_feed ? 'bprintLF' : 'bprint') +
+          this.instructions.call('bool_stdout') +
+          (line_feed ? this.instructions.call('linefeed') : '') +
           '\n'
         );
       }

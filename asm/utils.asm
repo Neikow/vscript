@@ -46,11 +46,6 @@ iprint:
 
   ret
 
-iprintLF:
-  call  iprint
-  call  linefeed
-  ret
-
 ; Prints a char array to STDOUT
 ; -> rcx : char array base pointer
 ; -> rdx : string length
@@ -65,18 +60,32 @@ sprint:
   pop   rdi
   ret
 
-; Prints a char array to STDOUT with line feed
-; -> rcx : char array base pointer
-; -> rdx : string length
-sprintLF:
-  call  sprint
-  call  linefeed
+; Prints a boolean value to STDOUT
+; -> rcx : 0 or 1
+bprint:
+  cmp   rcx, 0
+  jnz   .printTrue
+.printFalse:
+  mov   rcx, lit_false
+  call  string_stdout
+
+  jmp   .endPrint
+.printTrue:
+  mov   rcx, lit_true
+  call  string_stdout
+
+.endPrint:
   ret
 
 ; Prints a linefeed char to STDOUT
 linefeed:
   push  rsi
   push  rdi
+  push  rax
+  push  rbx
+  push  rcx
+  push  rdx
+  
   mov   rdx, 1
   push  qword 0ah
   mov   rsi, rsp
@@ -84,10 +93,14 @@ linefeed:
   mov   rax, SYS_WRITE
   syscall
   add   rsp, 8
+
+  pop   rdx
+  pop   rcx
+  pop   rbx
+  pop   rax
   pop   rdi
   pop   rsi
   ret
-
 
 ; Exits the program
 ; -> rcx : exit code
@@ -97,7 +110,8 @@ exit:
   syscall
   ret
 
-
+; Allocates memory
+; rcx -> number of bytes to allocate (u64)
 memalloc:
   mov		rax, 12   ; get current break
 	xor		rdi, rdi
@@ -110,32 +124,3 @@ memalloc:
 	syscall
   mov   [brk_curr], rax
   ret
-
-
-; Prints a boolean value to STDOUT
-; -> rcx : 0 or 1
-bprint:
-  cmp   rcx, 0
-  jnz   .printTrue
-.printFalse:
-  mov   rcx, false
-  mov   rdx, 5
-  call  sprint
-
-  jmp   .endPrint
-.printTrue:
-  mov   rcx, true
-  mov   rdx, 4
-  call  sprint
-
-.endPrint:
-  ret
-
-; Prints a boolean value to STDOUT with line feed
-; -> rcx : 0 or 1
-bprintLF:
-  call  bprint
-  call  linefeed
-  ret
-
-

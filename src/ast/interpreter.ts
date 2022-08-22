@@ -77,7 +77,7 @@ export const interpreter = (tree: SyntaxTree) => {
 
         if (node.value.kind === LanguageObjectKind.instance) {
           return [
-            chalk.yellow(`<type:${node.value.name}>`) +
+            chalk.yellow(`<type:${node.value.display_name}>`) +
               ' @ ' +
               chalk.green(`${node.location.format()}`),
             -1,

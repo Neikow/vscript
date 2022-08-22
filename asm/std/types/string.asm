@@ -1,5 +1,5 @@
 ; creates a new string object in memory
-; rcx -> string length          (u64)
+; rcx -> string length          (qword)
 ; rdx -> char array pointer     (ptr)
 ; rax <- string object address  (ptr)
 string_make:
@@ -14,6 +14,15 @@ string_make:
   mov   [brk_curr], rdi
   pop   rax
   pop   rdi
+  ret
+
+
+; prints string to STDOUT
+; rcx -> string     (ptr)
+string_stdout:
+  mov   rdx, [rcx + 2 * 8]  ; string length
+  mov   rcx, [rcx + 3 * 8]  ; char array pointer
+  call  sprint
   ret
 
 ; concatenates string stored in `rcx` and the string
@@ -68,7 +77,7 @@ string_concat:
 ; copies a char array to a new address
 ; rsi -> source array  (ptr)
 ; rdi -> destination   (ptr)
-; rcx -> string length (u64)
+; rcx -> string length (qword)
 string_copy:
   push  rdi
   push  rsi
@@ -90,7 +99,7 @@ string_copy:
 
 ; repeats a string
 ; rcx -> source string  (ptr)
-; rdx -> repeat count   (u64)
+; rdx -> repeat count   (qword)
 ; rax <- new string     (ptr)
 string_repeat:
   push  rsi

@@ -6,13 +6,19 @@ import {
   FunctionNode,
   Node,
   NodeType as NT,
+  NumberLiteralNode,
+  NumericalValueNode,
   SingleTypeNode,
 } from '../ast/nodes';
 import { Errors } from '../errors';
 import { Types } from '../std/types';
 import TypeHelper from '../types/helper';
-import { LanguageObjectKind } from '../types/objects';
-import { Location, OPERATOR } from '../types/types';
+import {
+  LanguageObject,
+  LanguageObjectInstance,
+  LanguageObjectKind,
+} from '../types/objects';
+import { INFINITY, Location, NAN, OPERATOR } from '../types/types';
 import { CompilerIO } from './compiler_io';
 import { Instructions } from './instructions';
 import { FunctionManger } from './objects/function_manager';
@@ -20,8 +26,7 @@ import { StringManager } from './objects/string_manager';
 
 export interface ParseResult {
   before: string;
-  // middle: string;
-  // after: string;
+  call: string;
   on_update: string;
   pointer_offset?: number;
   operation?: OPERATOR;
@@ -31,7 +36,8 @@ export interface ExpressionParser {
   (
     node: Node,
     parent_context: ContextNode,
-    register: typeof Instructions.prototype.registers[number]
+    register: typeof Instructions.prototype.registers[number],
+    should_push: boolean
   ): ParseResult[];
 }
 
@@ -41,7 +47,7 @@ export function compiler(tree: SyntaxTree, path: string) {
 
   const options = {
     memory: {
-      size: 16384, // 16kB
+      size: 1024 * 1024, // 1MB
     },
   };
 
@@ -54,7 +60,8 @@ export function compiler(tree: SyntaxTree, path: string) {
       ';     Generated assembly    \n' +
       '; --------------------------\n' +
       "\n%include\t'utils.asm'\n" +
-      "\n%include\t'std/types.asm'\n",
+      "\n%include\t'std/types.asm'\n" +
+      "\n%include\t'std/errors.asm'\n",
     text:
       '\nsection .text\n' +
       'global  _start\n' +
@@ -68,11 +75,11 @@ export function compiler(tree: SyntaxTree, path: string) {
       '\n; Memory Allocation\n' +
       I.mov('rcx', `${options.memory.size}`) +
       I.call('memalloc') +
-      '\n\n',
+      '\n',
     functions: '',
-    rodata: "true: db 'true'\n" + "false: db 'false'\n",
-    data: 'brk_init: dq 0x0\n' + 'brk_curr: dq 0x0\n' + 'brk_new: dq 0x0\n\n',
-    bss: 'output_buffer: resb 128\n',
+    rodata: '',
+    data: 'brk_init: dq 0x0\n' + 'brk_curr: dq 0x0\n',
+    bss: 'output_buffer: resb 512\n',
   };
 
   const IO = new CompilerIO(I, parseExpression);
@@ -80,7 +87,24 @@ export function compiler(tree: SyntaxTree, path: string) {
   const functions = new FunctionManger(asm, I, traveller);
   const strings = new StringManager(asm, I);
 
+  function makeLiteral(literal: string) {
+    asm.rodata += `str_${literal}: db '${literal}'\n`;
+    asm.data += `lit_${literal}: dq '0x0'\n`;
+
+    asm.text +=
+      I.mov('rcx', `${literal.length}`, 'literal length') +
+      I.mov('rdx', `str_${literal}`, 'literal string') +
+      I.call('string_make') +
+      I.mov(`[lit_${literal}]`, 'rax') +
+      '\n';
+  }
+
+  makeLiteral('null');
+  makeLiteral('true');
+  makeLiteral('false');
+
   asm.text +=
+    '\n\n' +
     traveller(tree.root, tree.root) +
     I.xor('rcx', 'rcx', '0 exit code') +
     I.call('exit');
@@ -98,22 +122,57 @@ export function compiler(tree: SyntaxTree, path: string) {
       asm.bss
   );
 
+  function toFunctionArguments(
+    args: ParseResult[],
+    populate_implicit_arg: boolean
+  ): string {
+    let res = '';
+    const registers = ['rcx', 'rdx', 'r8', 'r9'] as const;
+
+    const offset = populate_implicit_arg ? 0 : 1;
+
+    for (
+      let i = offset;
+      i < Math.min(registers.length, args.length + offset);
+      i++
+    ) {
+      res += args[i - offset].before + I.pop(registers[i]);
+    }
+
+    if (args.length + offset > registers.length) {
+      for (let i = args.length - 1; i > 4 - offset; i--) {
+        res += args[i].before;
+      }
+    }
+
+    return res;
+  }
+
   function parseExpression(
     node: Node,
     parent_context: ContextNode,
-    register: typeof I.registers[number]
+    register: typeof I.registers[number],
+    should_push: boolean
   ): ParseResult[] {
     switch (node.NT) {
       case NT.expression: {
-        return parseExpression(node.member!, parent_context, register);
+        return parseExpression(
+          node.member!,
+          parent_context,
+          register,
+          should_push
+        );
       }
       case NT.literal_boolean: {
         return [
           {
             before:
+              I.push('rcx') +
               I.mov('rcx', node.value ? '1' : '0', 'bool value') +
               I.call('bool_make') +
-              I.push('rax'),
+              I.pop('rcx') +
+              (should_push ? I.push('rax') : ''),
+            call: '',
             on_update: '',
           },
         ];
@@ -121,7 +180,9 @@ export function compiler(tree: SyntaxTree, path: string) {
       case NT.literal_string: {
         return [
           {
-            before: strings.add(node.value).before,
+            before:
+              strings.add(node.value).before + should_push ? I.push('rax') : '',
+            call: '',
             on_update: '',
           },
         ];
@@ -132,9 +193,12 @@ export function compiler(tree: SyntaxTree, path: string) {
         return [
           {
             before:
+              I.push('rcx') +
               I.mov('rcx', `${node.value}`) +
               I.call('u64_make') +
-              I.push('rax'),
+              I.pop('rcx') +
+              (should_push ? I.push('rax') : ''),
+            call: '',
             on_update: '',
           },
         ];
@@ -151,9 +215,6 @@ export function compiler(tree: SyntaxTree, path: string) {
 
         if (typeof node.definition.type.type == 'string')
           throw Errors.NotImplemented('string type');
-
-        if (node.definition.type.type.kind === LanguageObjectKind.instance)
-          throw Errors.NotImplemented(LanguageObjectKind.instance);
 
         const ARGUMENTS_OFFSET = 2;
 
@@ -204,7 +265,10 @@ export function compiler(tree: SyntaxTree, path: string) {
               {
                 before:
                   I.mov(register, address) +
-                  I.push(register, `= &${node.definition.name}`),
+                  (should_push
+                    ? I.push(register, `= &${node.definition.name}`)
+                    : ''),
+                call: '',
                 on_update: I.mov(address, register),
               },
             ];
@@ -219,9 +283,19 @@ export function compiler(tree: SyntaxTree, path: string) {
             if (!node.left || !node.right) throw Errors.CompilerError();
             const l_type = TypeHelper.getType(node.left, undefined);
             const r_type = TypeHelper.getType(node.right, undefined);
-            const left = parseExpression(node.left, parent_context, 'rax');
+            const left = parseExpression(
+              node.left,
+              parent_context,
+              'rax',
+              true
+            );
             if (left.length > 1) throw Errors.NotImplemented();
-            const right = parseExpression(node.right, parent_context, 'rbx');
+            const right = parseExpression(
+              node.right,
+              parent_context,
+              'rbx',
+              true
+            );
             if (right.length > 1) throw Errors.NotImplemented();
 
             if (l_type.NT !== NT.type_single || r_type.NT !== NT.type_single)
@@ -244,7 +318,10 @@ export function compiler(tree: SyntaxTree, path: string) {
                     I.pop('rdx') +
                     I.pop('rcx') +
                     I.call('bool_and') +
-                    I.push('rax'),
+                    should_push
+                      ? I.push('rax')
+                      : '',
+                  call: '',
                   on_update: '',
                 },
               ];
@@ -254,9 +331,19 @@ export function compiler(tree: SyntaxTree, path: string) {
             if (!node.left || !node.right) throw Errors.CompilerError();
             const l_type = TypeHelper.getType(node.left, undefined);
             const r_type = TypeHelper.getType(node.right, undefined);
-            const left = parseExpression(node.left, parent_context, 'rax');
+            const left = parseExpression(
+              node.left,
+              parent_context,
+              'rax',
+              true
+            );
             if (left.length > 1) throw Errors.NotImplemented();
-            const right = parseExpression(node.right, parent_context, 'rbx');
+            const right = parseExpression(
+              node.right,
+              parent_context,
+              'rbx',
+              true
+            );
             if (right.length > 1) throw Errors.NotImplemented();
 
             if (l_type.NT !== NT.type_single || r_type.NT !== NT.type_single)
@@ -279,7 +366,10 @@ export function compiler(tree: SyntaxTree, path: string) {
                     I.pop('rdx') +
                     I.pop('rcx') +
                     I.call('bool_or') +
-                    I.push('rax'),
+                    should_push
+                      ? I.push('rax')
+                      : '',
+                  call: '',
                   on_update: '',
                 },
               ];
@@ -289,9 +379,19 @@ export function compiler(tree: SyntaxTree, path: string) {
             if (!node.left || !node.right) throw Errors.CompilerError();
             const l_type = TypeHelper.getType(node.left, undefined);
             const r_type = TypeHelper.getType(node.right, undefined);
-            const left = parseExpression(node.left, parent_context, 'rax');
+            const left = parseExpression(
+              node.left,
+              parent_context,
+              'rax',
+              true
+            );
             if (left.length > 1) throw Errors.NotImplemented();
-            const right = parseExpression(node.right, parent_context, 'rbx');
+            const right = parseExpression(
+              node.right,
+              parent_context,
+              'rbx',
+              true
+            );
             if (right.length > 1) throw Errors.NotImplemented();
 
             if (l_type.NT !== NT.type_single || r_type.NT !== NT.type_single)
@@ -314,7 +414,10 @@ export function compiler(tree: SyntaxTree, path: string) {
                     I.pop('rdx') +
                     I.pop('rcx') +
                     I.call('bool_xor') +
-                    I.push('rax'),
+                    should_push
+                      ? I.push('rax')
+                      : '',
+                  call: '',
                   on_update: '',
                 },
               ];
@@ -324,7 +427,12 @@ export function compiler(tree: SyntaxTree, path: string) {
             if (node.left) throw Errors.CompilerError();
             if (!node.right) throw Errors.CompilerError();
             const r_type = TypeHelper.getType(node.right, undefined);
-            const right = parseExpression(node.right, parent_context, 'rbx');
+            const right = parseExpression(
+              node.right,
+              parent_context,
+              'rbx',
+              true
+            );
             if (right.length > 1) throw Errors.NotImplemented();
 
             if (r_type.NT !== NT.type_single) throw Errors.CompilerError();
@@ -337,7 +445,10 @@ export function compiler(tree: SyntaxTree, path: string) {
                     right[0].before +
                     I.pop('rcx') +
                     I.call('bool_not') +
-                    I.push('rax'),
+                    should_push
+                      ? I.push('rax')
+                      : '',
+                  call: '',
                   on_update: '',
                 },
               ];
@@ -347,9 +458,19 @@ export function compiler(tree: SyntaxTree, path: string) {
             if (!node.left || !node.right) throw Errors.CompilerError();
             const l_type = TypeHelper.getType(node.left, undefined);
             const r_type = TypeHelper.getType(node.right, undefined);
-            const left = parseExpression(node.left, parent_context, 'rax');
+            const left = parseExpression(
+              node.left,
+              parent_context,
+              'rax',
+              true
+            );
             if (left.length > 1) throw Errors.NotImplemented();
-            const right = parseExpression(node.right, parent_context, 'rbx');
+            const right = parseExpression(
+              node.right,
+              parent_context,
+              'rbx',
+              true
+            );
             if (right.length > 1) throw Errors.NotImplemented();
 
             if (l_type.NT !== NT.type_single || r_type.NT !== NT.type_single)
@@ -372,7 +493,10 @@ export function compiler(tree: SyntaxTree, path: string) {
                     I.pop('rdx') +
                     I.pop('rcx') +
                     I.call('string_concat') +
-                    I.push('rax'),
+                    should_push
+                      ? I.push('rax')
+                      : '',
+                  call: '',
                   on_update: '',
                 },
               ];
@@ -385,7 +509,10 @@ export function compiler(tree: SyntaxTree, path: string) {
                     I.pop('rdx') +
                     I.pop('rcx') +
                     I.call('u64_add_u64') +
-                    I.push('rax'),
+                    should_push
+                      ? I.push('rax')
+                      : '',
+                  call: '',
                   on_update: '',
                 },
               ];
@@ -397,9 +524,19 @@ export function compiler(tree: SyntaxTree, path: string) {
             if (!node.left || !node.right) throw Errors.CompilerError();
             const l_type = TypeHelper.getType(node.left, undefined);
             const r_type = TypeHelper.getType(node.right, undefined);
-            const left = parseExpression(node.left, parent_context, 'rax');
+            const left = parseExpression(
+              node.left,
+              parent_context,
+              'rax',
+              true
+            );
             if (left.length > 1) throw Errors.NotImplemented();
-            const right = parseExpression(node.right, parent_context, 'rbx');
+            const right = parseExpression(
+              node.right,
+              parent_context,
+              'rbx',
+              true
+            );
             if (right.length > 1) throw Errors.NotImplemented();
 
             if (l_type.NT !== NT.type_single || r_type.NT !== NT.type_single)
@@ -422,7 +559,10 @@ export function compiler(tree: SyntaxTree, path: string) {
                     I.pop('rdx') +
                     I.pop('rcx') +
                     I.call('u64_sub_u64') +
-                    I.push('rax'),
+                    should_push
+                      ? I.push('rax')
+                      : '',
+                  call: '',
                   on_update: '',
                 },
               ];
@@ -434,9 +574,19 @@ export function compiler(tree: SyntaxTree, path: string) {
             if (!node.left || !node.right) throw Errors.CompilerError();
             const l_type = TypeHelper.getType(node.left, undefined);
             const r_type = TypeHelper.getType(node.right, undefined);
-            const left = parseExpression(node.left, parent_context, 'rax');
+            const left = parseExpression(
+              node.left,
+              parent_context,
+              'rax',
+              true
+            );
             if (left.length > 1) throw Errors.NotImplemented();
-            const right = parseExpression(node.right, parent_context, 'rbx');
+            const right = parseExpression(
+              node.right,
+              parent_context,
+              'rbx',
+              true
+            );
             if (right.length > 1) throw Errors.NotImplemented();
 
             if (l_type.NT !== NT.type_single || r_type.NT !== NT.type_single)
@@ -450,31 +600,43 @@ export function compiler(tree: SyntaxTree, path: string) {
             )
               throw Errors.NotImplemented();
 
-            if (l_type.type === Types.string.object) {
-              return [
-                {
-                  before:
-                    left[0].before +
-                    right[0].before +
-                    I.pop('rdx') +
-                    I.pop('rcx') +
-                    I.call('string_concat') +
-                    I.inc('qword [rax + 1 * 8]') +
-                    left[0].on_update,
-                  on_update: '',
-                },
-              ];
-            } else {
-              throw Errors.NotImplemented(TypeHelper.formatType(l_type));
-            }
+            throw Errors.NotImplemented('should_push');
+
+            // if (l_type.type === Types.string.object) {
+            //   return [
+            //     {
+            //       before:
+            //         left[0].before +
+            //         right[0].before +
+            //         I.pop('rdx') +
+            //         I.pop('rcx') +
+            //         I.call('string_concat') +
+            //         I.inc('qword [rax + 1 * 8]') +
+            //         left[0].on_update,
+            //       on_update: '',
+            //     },
+            //   ];
+            // } else {
+            //   throw Errors.NotImplemented(TypeHelper.formatType(l_type));
+            // }
           }
           case 'mul': {
             if (!node.left || !node.right) throw Errors.CompilerError();
             const l_type = TypeHelper.getType(node.left, undefined);
             const r_type = TypeHelper.getType(node.right, undefined);
-            const left = parseExpression(node.left, parent_context, 'rax');
+            const left = parseExpression(
+              node.left,
+              parent_context,
+              'rax',
+              true
+            );
             if (left.length > 1) throw Errors.NotImplemented();
-            const right = parseExpression(node.right, parent_context, 'rbx');
+            const right = parseExpression(
+              node.right,
+              parent_context,
+              'rbx',
+              true
+            );
             if (right.length > 1) throw Errors.NotImplemented();
 
             if (l_type.NT !== NT.type_single || r_type.NT !== NT.type_single)
@@ -493,7 +655,10 @@ export function compiler(tree: SyntaxTree, path: string) {
                     I.mov('rdx', '[rdx + 2 * 8]') +
                     I.pop('rcx') +
                     I.call('string_repeat') +
-                    I.push('rax'),
+                    should_push
+                      ? I.push('rax')
+                      : '',
+                  call: '',
                   on_update: '',
                 },
               ];
@@ -516,7 +681,10 @@ export function compiler(tree: SyntaxTree, path: string) {
                     I.pop('rdx') +
                     I.pop('rcx') +
                     I.call('u64_mul_u64') +
-                    I.push('rax'),
+                    should_push
+                      ? I.push('rax')
+                      : '',
+                  call: '',
                   on_update: '',
                 },
               ];
@@ -544,40 +712,191 @@ export function compiler(tree: SyntaxTree, path: string) {
               throw Errors.CompilerError();
             if (typeof ref.definition.type.type === 'string')
               throw Errors.NotImplemented();
-            if (ref.definition.type.type.kind === LanguageObjectKind.instance)
-              throw Errors.NotImplemented();
 
-            const res = parseExpression(node.left, parent_context, register);
+            const res = parseExpression(
+              node.left,
+              parent_context,
+              register,
+              true
+            );
 
             if (res.length > 1) throw Errors.NotImplemented('tuples');
 
             if (stack.length > 1) throw Errors.CompilerError();
 
-            if (
-              stack[0] === 'length' &&
-              ref.definition.type.type === Types.string.object
+            if (ref.definition.type.type === Types.string.object) {
+              if (stack[0] === 'length')
+                return [
+                  {
+                    before:
+                      res[0].before +
+                      I.pop('rax') +
+                      I.mov('rcx', '[rax + 2 * 8]', 'string length') +
+                      I.call('u64_make', 'convert length to object') +
+                      should_push
+                        ? I.push('rax')
+                        : '',
+                    call: '',
+                    on_update: '',
+                  },
+                ];
+            } else if (
+              ref.definition.type.type.kind === LanguageObjectKind.instance &&
+              ref.definition.type.type.object === Types.array.object
             ) {
+              if (stack[0] === 'length') {
+                return [
+                  {
+                    before:
+                      res[0].before +
+                      I.pop('rax') +
+                      I.mov('rcx', '[rax + 3 * 8]', 'array length') +
+                      I.call('u64_make', 'convert length to object') +
+                      should_push
+                        ? I.push('rax')
+                        : '',
+                    call: '',
+                    on_update: '',
+                  },
+                ];
+              } else if (stack[0] === 'push') {
+                return [
+                  {
+                    before: res[0].before,
+                    call: 'array_push',
+                    on_update: '',
+                  },
+                ];
+              } else if (stack[0] === 'pop') {
+                return [
+                  {
+                    before: res[0].before,
+                    call: 'array_pop',
+                    on_update: '',
+                  },
+                ];
+              }
+            } else {
+              throw Errors.NotImplemented(
+                `${ref.definition.name} of type ${TypeHelper.formatType(
+                  ref.definition.type
+                )} with property stack: '${stack}'`
+              );
+            }
+          }
+          case 'access_call': {
+            if (!node.left || !node.right) throw Errors.CompilerError();
+
+            if (node.left.NT === NT.operator) {
+              if (node.left.op !== 'access_property')
+                throw Errors.NotImplemented();
+              const left = parseExpression(
+                node.left,
+                parent_context,
+                'rcx',
+                false
+              );
+              if (left.length > 1) throw Errors.CompilerError();
+
+              const right = parseExpression(
+                node.right,
+                parent_context,
+                'rax',
+                true
+              );
+
+              const args = toFunctionArguments(right, false);
               return [
                 {
                   before:
-                    res[0].before +
-                    I.pop('rax') +
-                    I.mov('rcx', '[rax + 2 * 8]', 'string length') +
-                    I.call('u64_make', 'convert length to object') +
-                    I.push('rax'),
+                    left[0].before +
+                    args +
+                    I.call(left[0].call) +
+                    (should_push ? I.push('rax') : ''),
+                  call: '',
                   on_update: '',
                 },
               ];
-            } else {
-              throw Errors.NotImplemented(
-                `${ref.definition.name} with property stack ${stack}`
-              );
             }
+
+            throw Errors.NotImplemented(node.left.NT);
           }
           default: {
             throw Errors.NotImplemented(node.op);
           }
         }
+      }
+      case NT.array: {
+        const len_prop = node.value_type!.value_properties!.get(
+          'length'
+        ) as NumericalValueNode;
+        if (len_prop === undefined) throw Errors.CompilerError();
+        const len_string = TypeHelper.getLiteralValue(len_prop).value;
+        if (len_string === NAN || len_string === INFINITY)
+          throw Errors.CompilerError();
+
+        const array_length = parseInt(len_string as string);
+
+        let value =
+          I.mov('rdx', '[brk_curr]', 'array base') +
+          I.mov('rdi', 'rdx') +
+          I.add('rdi', `${array_length} * 8`, 'allocate space for the array') +
+          I.mov('[brk_curr]', 'rdi') +
+          I.mov('rcx', `${array_length}`) +
+          I.call('array_make') +
+          I.push('rax', 'array address') +
+          I.mov('rdi', 'rdx') +
+          '\n' +
+          '\t; initial values\n';
+
+        for (let i = 0; i < node.list!.members.length; i++) {
+          const type = TypeHelper.getType(node.list!.members[i], undefined);
+          if (type.NT !== NT.type_single || typeof type.type === 'string')
+            throw Errors.NotImplemented();
+
+          if (type.type !== Types.u64.object) throw Errors.NotImplemented();
+
+          const val = parseExpression(
+            node.list!.members[i],
+            parent_context,
+            'rax',
+            false
+          );
+
+          if (val.length > 1) throw Errors.CompilerError();
+          value += val[0].before + I.mov(`[rdi + ${i} * 8]`, 'rax') + '\n';
+        }
+
+        value += I.pop('rax') + I.push('rax');
+
+        value += I.mov(
+          'qword [rax + 3 * 8]',
+          `${node.list!.members.length}`,
+          'initial size'
+        );
+
+        return [
+          {
+            before: value,
+            on_update: '',
+            call: '',
+          },
+        ];
+      }
+      case NT.expression_list: {
+        let res: ParseResult[] = [];
+        for (const member of node.members) {
+          let list_member = parseExpression(
+            member,
+            parent_context,
+            register,
+            should_push
+          );
+          if (list_member.length > 1)
+            throw Errors.NotImplemented('Nested lists');
+          res.push(list_member[0]);
+        }
+        return res;
       }
       default:
         throw Errors.NotImplemented(node.NT);
@@ -594,7 +913,7 @@ export function compiler(tree: SyntaxTree, path: string) {
         return code;
       }
       case NT.expression: {
-        const val = parseExpression(node, parent_context, 'rax');
+        const val = parseExpression(node, parent_context, 'rax', false);
         if (val.length > 1) throw Errors.NotImplemented('tuples');
         return val[0].before;
       }
@@ -607,7 +926,12 @@ export function compiler(tree: SyntaxTree, path: string) {
           case DT.var: {
             if (!node.value) throw Errors.NotImplemented();
 
-            let value = parseExpression(node.value, parent_context, 'rax');
+            let value = parseExpression(
+              node.value,
+              parent_context,
+              'rax',
+              true
+            );
             if (value.length > 1) throw Errors.NotImplemented('tuple');
 
             if (node.type_check_id === undefined)
@@ -637,8 +961,6 @@ export function compiler(tree: SyntaxTree, path: string) {
         if (expression_type.NT === NT.type_single) {
           if (typeof expression_type.type === 'string')
             throw Errors.NotImplemented(TypeHelper.formatType(expression_type));
-          if (expression_type.type.kind === LanguageObjectKind.instance)
-            throw Errors.NotImplemented(LanguageObjectKind.instance);
 
           return IO.stdout(node.member!, expression_type, parent_context);
         }

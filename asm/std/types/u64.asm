@@ -1,6 +1,6 @@
 ; creates a new unsigned integer object in memory
-; rcx -> u64 value
-; rax <- u64 object address
+; rcx -> value              (qword)
+; rax <- object address     (ptr)
 u64_make:
   push  rdi
   mov   rdi, [brk_curr]
@@ -12,6 +12,13 @@ u64_make:
   mov   [brk_curr], rdi
   pop   rax
   pop   rdi
+  ret
+
+; prints u64 to STDOUT
+; rcx -> u64     (ptr)
+u64_stdout:
+  mov   rcx, [rcx + 2 * 8]  ; u64 value
+  call  iprint
   ret
 
 ; adds u64 (2) to u64 (1) returning a new object

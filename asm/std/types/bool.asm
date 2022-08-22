@@ -1,5 +1,5 @@
 ; creates a new bool object in memory
-; rcx -> 0 or 1 value         (u64)
+; rcx -> 0 or 1 value         (qword)
 ; rax <- bool object address  (ptr)
 bool_make:
   push  rdi
@@ -15,6 +15,12 @@ bool_make:
   pop   rdi
   ret
 
+; prints u64 to STDOUT
+; rcx -> u64     (ptr)
+bool_stdout:
+  mov   rcx, [rcx + 2 * 8]  ; u64 value
+  call  bprint
+  ret
 
 ; applies the `and` operator to two booleans
 ; rcx -> bool object (1) (ptr)

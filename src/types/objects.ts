@@ -61,8 +61,16 @@ export interface LanguageObject {
 export interface LanguageObjectInstance {
   kind: LanguageObjectKind.instance;
   is_struct: boolean;
-  name: string;
-  typeProperties: Map<string, LanguageObject | LanguageObjectInstance>;
-  valueProperties: Map<string, ValueNode>;
+  display_name: string;
+  type_properties:
+    | Map<
+        string,
+        | LanguageObject
+        | LanguageObjectInstance
+        | (LanguageObject | LanguageObjectInstance)[]
+      >
+    | undefined;
+  value_properties: Map<string, ValueNode> | undefined;
+  properties_overrides: Map<string, ObjectProperty> | undefined;
   object: LanguageObject;
 }

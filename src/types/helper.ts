@@ -169,7 +169,24 @@ const TypeHelper = {
                 if (node.left.definition.value.return_type.NT === NT.type_raw)
                   throw Errors.NotImplemented(NT.type_raw);
                 return node.left.definition.value.return_type;
-              } else throw Errors.NotImplemented('call');
+              } else {
+                const type = TypeHelper.getType(node.left, undefined);
+                if (type.NT !== NT.type_single) throw Errors.NotImplemented();
+                if (typeof type.type === 'string')
+                  throw Errors.NotImplemented();
+                if (type.type.kind !== LanguageObjectKind.instance)
+                  throw Errors.NotImplemented();
+
+                if (!type.type.type_properties) throw Errors.ParserError();
+
+                const res = type.type.type_properties.get('return_type');
+                if (!res) throw Errors.ParserError();
+
+                return {
+                  NT: NT.type_single,
+                  type: res as LanguageObject | LanguageObjectInstance,
+                };
+              }
             }
           }
           case 'access_property': {
@@ -262,9 +279,16 @@ const TypeHelper = {
                 throw Errors.SyntaxError('Object has no properties to access.');
               }
 
-              const value = target_type_node.type.object.properties.get(
-                node.right.value
-              );
+              let value: ObjectProperty | undefined;
+              if (target_type_node.type.properties_overrides) {
+                value = target_type_node.type.properties_overrides!.get(
+                  node.right.value
+                );
+              } else {
+                value = target_type_node.type.object.properties.get(
+                  node.right.value
+                );
+              }
 
               if (!value) {
                 throw Errors.MissingProperty(
@@ -758,7 +782,7 @@ const TypeHelper = {
             typeof t == 'string'
               ? t
               : t.kind === LanguageObjectKind.instance
-              ? t.name
+              ? t.display_name
               : t.display_name;
           return useColors ? chalk.magentaBright(str) : str;
         })
@@ -768,7 +792,7 @@ const TypeHelper = {
         typeof node.type == 'string'
           ? node.type
           : node.type.kind === LanguageObjectKind.instance
-          ? node.type.name
+          ? node.type.display_name
           : node.type.display_name;
       return useColors ? chalk.magentaBright(str) : str;
     }
@@ -1118,6 +1142,15 @@ const TypeHelper = {
       case NT.literal_string:
       case NT.literal_number: {
         return node;
+      }
+
+      case NT.value_num: {
+        return {
+          NT: NT.literal_number,
+          location: node.location,
+          value: node.value.toString(),
+          value_type: node.value_type,
+        };
       }
 
       default: {

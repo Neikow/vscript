@@ -48,14 +48,16 @@ export class StringManager {
     }
 
     const before =
+      this.I.push('rcx') +
       this.I.mov('rdx', `${id}`) +
       this.I.mov('rcx', `${str.length}`) +
       this.I.call('string_make') +
-      this.I.push('rax');
+      this.I.pop('rcx');
 
     return {
       before: before,
       on_update: '',
+      call: '',
     };
   }
 }

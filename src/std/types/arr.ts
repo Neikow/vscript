@@ -16,29 +16,57 @@ import {
 import { Location, TYPE_ANY, VSCType } from '../../types/types';
 import VSCTypeUint from './u64';
 import VSCTypeFun from './fun';
+import { Types } from '.';
 
-class VSCTypeArr implements VSCType {
-  display: string = 'array';
+type ArrayTypeProperties = '$type' | 'length' | 'pop' | 'push';
 
-  _type_properties: { [key: string]: ObjectProperty } = {
+const array_type_properties: { [key in ArrayTypeProperties]: ObjectProperty } =
+  {
     $type: {
       kind: PropertyKind.type,
       location: Location.std,
       name: 'type',
-    },
+    } as const,
     length: {
       kind: PropertyKind.value,
       location: Location.std,
       name: 'length',
       index: 0,
-      size: 4,
+      size: 8,
       optional: false,
       type: {
         NT: NodeType.type_single,
         type: VSCTypeUint.object,
       },
-    },
-  };
+    } as const,
+    pop: {
+      kind: PropertyKind.value,
+      location: Location.std,
+      name: 'pop',
+      index: 1,
+      size: 8,
+      optional: false,
+      type: {
+        NT: NodeType.type_single,
+        type: VSCTypeFun.object,
+      },
+    } as const,
+    push: {
+      kind: PropertyKind.value,
+      location: Location.std,
+      name: 'push',
+      index: 2,
+      size: 8,
+      optional: false,
+      type: {
+        NT: NodeType.type_single,
+        type: VSCTypeFun.object,
+      },
+    } as const,
+  } as const;
+
+class VSCTypeArr implements VSCType {
+  display: string = 'array';
 
   object: LanguageObject = {
     NT: NodeType.language_object,
@@ -50,11 +78,11 @@ class VSCTypeArr implements VSCType {
     builtin_reference: this,
     is_struct: false,
     properties: new Map<string, ObjectProperty>(
-      Object.entries(this._type_properties)
+      Object.entries(array_type_properties)
     ),
     parameters: {
       template_types: ['T'],
-      values: [['length', this._type_properties.length]],
+      values: [['length', array_type_properties.length]],
     },
   };
 
@@ -68,7 +96,7 @@ class VSCTypeArr implements VSCType {
     value_properties: { length: ValueNode }
   ) => {
     const name = `${Array.from(Object.values(type_properties)).map((p) =>
-      p.kind === LanguageObjectKind.instance ? p.name : p.display_name
+      p.kind === LanguageObjectKind.instance ? p.display_name : p.display_name
     )}[${Array.from(Object.values(value_properties)).map((v) => {
       if (typeof v.value !== 'string' && typeof v.value !== 'number')
         throw Errors.NotImplemented('struct');
@@ -78,13 +106,47 @@ class VSCTypeArr implements VSCType {
     const res = this.instances.get(name);
     if (res) return res;
 
+    const properties_overrides: Partial<typeof array_type_properties> = {
+      pop: {
+        kind: PropertyKind.value,
+        location: Location.std,
+        name: 'pop',
+        optional: false,
+        size: 8,
+        index: 1,
+        type: {
+          NT: NodeType.type_single,
+          type: VSCTypeFun.newInstance({
+            arguments: [],
+            return_type: type_properties.type,
+          }),
+        },
+      },
+      push: {
+        kind: PropertyKind.value,
+        location: Location.std,
+        name: 'push',
+        optional: false,
+        size: 8,
+        index: 2,
+        type: {
+          NT: NodeType.type_single,
+          type: VSCTypeFun.newInstance({
+            arguments: [type_properties.type],
+            return_type: VSCTypeUint.object,
+          }),
+        },
+      },
+    };
+
     const instance: LanguageObjectInstance = {
       kind: LanguageObjectKind.instance,
       is_struct: this.object.is_struct,
-      name: name,
+      display_name: name,
       object: this.object,
-      valueProperties: new Map(Object.entries(value_properties)),
-      typeProperties: new Map(Object.entries(type_properties)),
+      properties_overrides: new Map(Object.entries(properties_overrides)),
+      value_properties: new Map(Object.entries(value_properties)),
+      type_properties: new Map(Object.entries(type_properties)),
     };
 
     this.instances.set(name, instance);

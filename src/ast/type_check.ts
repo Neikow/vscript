@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { SyntaxTree } from '.';
 import { Errors } from '../errors';
-import { LanguageObjectKind, PropertyKind } from '../types/objects';
+import { LanguageObject, LanguageObjectInstance, LanguageObjectKind, PropertyKind } from '../types/objects';
 import { Types } from '../std/types';
 import {
   ContextNode,
@@ -220,6 +220,8 @@ export const typeChecker = (tree: SyntaxTree) => {
                 throw Errors.NotImplemented(NT.type_union);
               }
 
+              const res = recurse(node.value, params);
+
               node.type =
                 type_node.type == TYPE_VOID
                   ? {
@@ -231,7 +233,7 @@ export const typeChecker = (tree: SyntaxTree) => {
               params.variable_types.set(node.type_check_id, node.type);
 
               return {
-                success: true,
+                success: res.success,
                 found_return: false,
                 type_constraints: params.variable_types,
               };
@@ -255,9 +257,43 @@ export const typeChecker = (tree: SyntaxTree) => {
             }
 
             if (
-              node.type.type !== TYPE_UNKNOWN &&
-              node.type.type !== expr_type.type
+              typeof node.type.type === 'string' ||
+              typeof expr_type.type === 'string'
+            )
+              throw Errors.NotImplemented();
+
+            if (
+              node.type.type.kind === LanguageObjectKind.instance &&
+              node.type.type.object === Types.array.object &&
+              expr_type.type.kind === LanguageObjectKind.instance &&
+              expr_type.type.object === Types.array.object &&
+              node.type.type.type_properties!.get('type') ===
+                expr_type.type.type_properties!.get('type')
             ) {
+              const type_length =
+                node.type.type.value_properties!.get('length');
+              const array_length =
+                expr_type.type.value_properties!.get('length');
+
+              if (type_length === undefined || array_length === undefined)
+                throw Errors.TypeCheckError('');
+
+              if (type_length < array_length)
+                throw Errors.TypeError(node.location, node.type, expr_type);
+              else {
+                if (
+                  node.value.NT !== NT.expression ||
+                  node.value.member?.NT !== NT.array
+                )
+                  throw Errors.TypeCheckError('');
+
+                node.value.member.value_type = node.type.type;
+
+                return recurse(node.value, params);
+              }
+            }
+
+            if (node.type.type !== expr_type.type) {
               // TODO: try casting to proper type.
               throw Errors.TypeError(node.location, node.type, expr_type);
             }
@@ -862,7 +898,7 @@ export const typeChecker = (tree: SyntaxTree) => {
           case 'not': {
             if (node.left) throw Errors.ParserError('Extraneous left operand');
             if (!node.right) throw Errors.ParserError('Missing right operand');
-            
+
             return {
               success: true,
               found_return: false,
@@ -1128,8 +1164,38 @@ export const typeChecker = (tree: SyntaxTree) => {
       }
 
       case NT.array: {
-        // TODO: dunno
-        console.debug('dunno array ');
+        if (!node.list || node.list.members.length == 0)
+          throw Errors.NotImplemented();
+
+        const type_node = TypeHelper.getType(node.list.members[0], params);
+
+        if (type_node.NT !== NT.type_single) throw Errors.NotImplemented();
+        if (typeof type_node.type === 'string') throw Errors.NotImplemented();
+        if (type_node.type.kind === LanguageObjectKind.instance)
+          throw Errors.NotImplemented();
+
+        const array_type = node.value_type!.type_properties!.get('type');
+        if (!array_type) throw Errors.TypeCheckError('Missing type on array');
+        if (array_type !== type_node.type)
+          throw Errors.TypeCheckError(
+            `${TypeHelper.formatType({
+              NT: NT.type_single,
+              type: array_type as LanguageObject | LanguageObjectInstance,
+            })} and ${TypeHelper.formatType(type_node)} have no overlap`
+          );
+
+        for (let i = 1; i < node.list.members.length; i++) {
+          const mem_type = TypeHelper.getType(node.list.members[i], params);
+          if (mem_type.NT !== NT.type_single) throw Errors.NotImplemented();
+
+          if (type_node.type !== mem_type.type)
+            throw Errors.TypeCheckError(
+              `${TypeHelper.formatType(type_node)} and ${TypeHelper.formatType(
+                mem_type
+              )} have no overlap`
+            );
+        }
+
         return {
           success: true,
           found_return: false,

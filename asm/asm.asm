@@ -6,6 +6,8 @@
 
 %include	'std/types.asm'
 
+%include	'std/errors.asm'
+
 section .text
 global  _start
 
@@ -18,553 +20,136 @@ _start:
 	push	rbp
 
 ; Memory Allocation
-	mov		rcx, 16384
+	mov		rcx, 1048576
 	call	memalloc
 
+	mov		rcx, 4	; literal length
+	mov		rdx, str_null	; literal string
+	call	string_make
+	mov		[lit_null], rax
 
-	mov		rcx, 1	; bool value
-	call	bool_make
+	mov		rcx, 4	; literal length
+	mov		rdx, str_true	; literal string
+	call	string_make
+	mov		[lit_true], rax
+
+	mov		rcx, 5	; literal length
+	mov		rdx, str_false	; literal string
+	call	string_make
+	mov		[lit_false], rax
+
+
+
+	mov		rdx, [brk_curr]	; array base
+	mov		rdi, rdx
+	add		rdi, 8 * 8	; allocate space for the array
+	mov		[brk_curr], rdi
+	mov		rcx, 8
+	call	array_make
+	push	rax	; array address
+	mov		rdi, rdx
+
+	; initial values
+	push	rcx
+	mov		rcx, 0
+	call	u64_make
+	pop		rcx
+	mov		[rdi + 0 * 8], rax
+
+	push	rcx
+	mov		rcx, 1
+	call	u64_make
+	pop		rcx
+	mov		[rdi + 1 * 8], rax
+
+	push	rcx
+	mov		rcx, 2
+	call	u64_make
+	pop		rcx
+	mov		[rdi + 2 * 8], rax
+
+	push	rcx
+	mov		rcx, 3
+	call	u64_make
+	pop		rcx
+	mov		[rdi + 3 * 8], rax
+
+	push	rcx
+	mov		rcx, 4
+	call	u64_make
+	pop		rcx
+	mov		[rdi + 4 * 8], rax
+
+	push	rcx
+	mov		rcx, 5
+	call	u64_make
+	pop		rcx
+	mov		[rdi + 5 * 8], rax
+
+	pop		rax
 	push	rax
+	mov		qword [rax + 3 * 8], 6	; initial size
 	inc		qword [rax + 1 * 8]
 
-	; statement_debug (tuple)
-	mov		rdx, _s0
-	mov		rcx, 14
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
+	; statement_debug (array)
+	mov		rcx, [rbp - 2 * 8]
+	mov		rdx, u64_stdout	; printing function address
+	call	array_stdout
+	call	linefeed
 
-	mov		rdx, _s1
-	mov		rcx, 1
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rax, [rbp - 2 * 8]
-	push	rax	; = &x
+	mov		rcx, [rbp - 2 * 8]
+	push	rcx	; = &x
+	push	rcx
+	mov		rcx, 10
+	call	u64_make
 	pop		rcx
-	mov		rcx, [rcx + 2 * 8]
-	call	bprintLF
-
-	mov		rcx, 0	; bool value
-	call	bool_make
-	push	rax
-	inc		qword [rax + 1 * 8]
-
-	; statement_debug (tuple)
-	mov		rdx, _s2
-	mov		rcx, 14
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rdx, _s1
-	mov		rcx, 1
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rax, [rbp - 3 * 8]
-	push	rax	; = &y
-	pop		rcx
-	mov		rcx, [rcx + 2 * 8]
-	call	bprintLF
-
-	; statement_debug (tuple)
-	mov		rdx, _s3
-	mov		rcx, 14
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rdx, _s1
-	mov		rcx, 1
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rcx, 1	; bool value
-	call	bool_make
-	push	rax
-	mov		rcx, 1	; bool value
-	call	bool_make
 	push	rax
 	pop		rdx
+	call	array_push
+	mov		rcx, [rbp - 2 * 8]
+	push	rcx	; = &x
+	push	rcx
+	mov		rcx, 20
+	call	u64_make
 	pop		rcx
-	call	bool_and
-	push	rax
-	pop		rcx
-	mov		rcx, [rcx + 2 * 8]
-	call	bprintLF
-
-	; statement_debug (tuple)
-	mov		rdx, _s4
-	mov		rcx, 14
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rdx, _s1
-	mov		rcx, 1
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rcx, 1	; bool value
-	call	bool_make
-	push	rax
-	mov		rcx, 0	; bool value
-	call	bool_make
 	push	rax
 	pop		rdx
-	pop		rcx
-	call	bool_and
-	push	rax
-	pop		rcx
-	mov		rcx, [rcx + 2 * 8]
-	call	bprintLF
+	call	array_push
+	; statement_debug (array)
+	mov		rcx, [rbp - 2 * 8]
+	mov		rdx, u64_stdout	; printing function address
+	call	array_stdout
+	call	linefeed
 
-	; statement_debug (tuple)
-	mov		rdx, _s5
-	mov		rcx, 14
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rdx, _s1
-	mov		rcx, 1
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rcx, 1	; bool value
-	call	bool_make
-	push	rax
-	mov		rcx, 0	; bool value
-	call	bool_make
-	push	rax
-	pop		rdx
-	pop		rcx
-	call	bool_and
+	; statement_debug (int)
+	mov		rcx, [rbp - 2 * 8]
+	push	rcx	; = &x
+	call	array_pop
 	push	rax
 	pop		rcx
-	mov		rcx, [rcx + 2 * 8]
-	call	bprintLF
+	call	u64_stdout
+	call	linefeed
 
-	; statement_debug (tuple)
-	mov		rdx, _s6
-	mov		rcx, 14
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rdx, _s1
-	mov		rcx, 1
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rcx, 0	; bool value
-	call	bool_make
-	push	rax
-	mov		rcx, 0	; bool value
-	call	bool_make
-	push	rax
-	pop		rdx
-	pop		rcx
-	call	bool_and
-	push	rax
-	pop		rcx
-	mov		rcx, [rcx + 2 * 8]
-	call	bprintLF
-
-	; statement_debug (tuple)
-	mov		rdx, _s7
-	mov		rcx, 14
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rdx, _s1
-	mov		rcx, 1
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rcx, 1	; bool value
-	call	bool_make
-	push	rax
-	mov		rcx, 1	; bool value
-	call	bool_make
-	push	rax
-	pop		rdx
-	pop		rcx
-	call	bool_or
-	push	rax
-	pop		rcx
-	mov		rcx, [rcx + 2 * 8]
-	call	bprintLF
-
-	; statement_debug (tuple)
-	mov		rdx, _s8
-	mov		rcx, 14
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rdx, _s1
-	mov		rcx, 1
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rcx, 1	; bool value
-	call	bool_make
-	push	rax
-	mov		rcx, 0	; bool value
-	call	bool_make
-	push	rax
-	pop		rdx
-	pop		rcx
-	call	bool_or
-	push	rax
-	pop		rcx
-	mov		rcx, [rcx + 2 * 8]
-	call	bprintLF
-
-	; statement_debug (tuple)
-	mov		rdx, _s9
-	mov		rcx, 14
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rdx, _s1
-	mov		rcx, 1
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rcx, 0	; bool value
-	call	bool_make
-	push	rax
-	mov		rcx, 1	; bool value
-	call	bool_make
-	push	rax
-	pop		rdx
-	pop		rcx
-	call	bool_or
-	push	rax
-	pop		rcx
-	mov		rcx, [rcx + 2 * 8]
-	call	bprintLF
-
-	; statement_debug (tuple)
-	mov		rdx, _s10
-	mov		rcx, 14
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rdx, _s1
-	mov		rcx, 1
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rcx, 0	; bool value
-	call	bool_make
-	push	rax
-	mov		rcx, 0	; bool value
-	call	bool_make
-	push	rax
-	pop		rdx
-	pop		rcx
-	call	bool_or
-	push	rax
-	pop		rcx
-	mov		rcx, [rcx + 2 * 8]
-	call	bprintLF
-
-	; statement_debug (tuple)
-	mov		rdx, _s11
-	mov		rcx, 14
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rdx, _s1
-	mov		rcx, 1
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rcx, 1	; bool value
-	call	bool_make
-	push	rax
-	mov		rcx, 1	; bool value
-	call	bool_make
-	push	rax
-	pop		rdx
-	pop		rcx
-	call	bool_xor
-	push	rax
-	pop		rcx
-	mov		rcx, [rcx + 2 * 8]
-	call	bprintLF
-
-	; statement_debug (tuple)
-	mov		rdx, _s12
-	mov		rcx, 14
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rdx, _s1
-	mov		rcx, 1
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rcx, 1	; bool value
-	call	bool_make
-	push	rax
-	mov		rcx, 0	; bool value
-	call	bool_make
-	push	rax
-	pop		rdx
-	pop		rcx
-	call	bool_xor
-	push	rax
-	pop		rcx
-	mov		rcx, [rcx + 2 * 8]
-	call	bprintLF
-
-	; statement_debug (tuple)
-	mov		rdx, _s13
-	mov		rcx, 14
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rdx, _s1
-	mov		rcx, 1
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rcx, 1	; bool value
-	call	bool_make
-	push	rax
-	mov		rcx, 0	; bool value
-	call	bool_make
-	push	rax
-	pop		rdx
-	pop		rcx
-	call	bool_xor
-	push	rax
-	pop		rcx
-	mov		rcx, [rcx + 2 * 8]
-	call	bprintLF
-
-	; statement_debug (tuple)
-	mov		rdx, _s14
-	mov		rcx, 14
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rdx, _s1
-	mov		rcx, 1
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rcx, 0	; bool value
-	call	bool_make
-	push	rax
-	mov		rcx, 0	; bool value
-	call	bool_make
-	push	rax
-	pop		rdx
-	pop		rcx
-	call	bool_xor
-	push	rax
-	pop		rcx
-	mov		rcx, [rcx + 2 * 8]
-	call	bprintLF
-
-	; statement_debug (tuple)
-	mov		rdx, _s15
-	mov		rcx, 14
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rdx, _s1
-	mov		rcx, 1
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rcx, 1	; bool value
-	call	bool_make
-	push	rax
-	pop		rcx
-	call	bool_not
-	push	rax
-	pop		rcx
-	mov		rcx, [rcx + 2 * 8]
-	call	bprintLF
-
-	; statement_debug (tuple)
-	mov		rdx, _s16
-	mov		rcx, 14
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rdx, _s1
-	mov		rcx, 1
-	call	string_make
-	push	rax
-	pop		rsi
-	mov		rdx, [rsi + 16]	; string length
-	mov		rcx, [rsi + 24]	; char array pointer
-	call	sprint
-
-	mov		rcx, 0	; bool value
-	call	bool_make
-	push	rax
-	pop		rcx
-	call	bool_not
-	push	rax
-	pop		rcx
-	mov		rcx, [rcx + 2 * 8]
-	call	bprintLF
+	; statement_debug (array)
+	mov		rcx, [rbp - 2 * 8]
+	mov		rdx, u64_stdout	; printing function address
+	call	array_stdout
+	call	linefeed
 
 	xor		rcx, rcx	; 0 exit code
 	call	exit
 
 section .rodata
-true: db 'true'
-false: db 'false'
-_s0: db 'true          ', 0h, 0h
-_s1: db ' ', 0h, 0h, 0h, 0h, 0h, 0h, 0h
-_s2: db 'false         ', 0h, 0h
-_s3: db 'true && true  ', 0h, 0h
-_s4: db 'true && false ', 0h, 0h
-_s5: db 'false && true ', 0h, 0h
-_s6: db 'false && false', 0h, 0h
-_s7: db 'true || true  ', 0h, 0h
-_s8: db 'true || false ', 0h, 0h
-_s9: db 'false || true ', 0h, 0h
-_s10: db 'false || false', 0h, 0h
-_s11: db 'true !| true  ', 0h, 0h
-_s12: db 'true !| false ', 0h, 0h
-_s13: db 'false !| true ', 0h, 0h
-_s14: db 'false !| false', 0h, 0h
-_s15: db '!true         ', 0h, 0h
-_s16: db '!false        ', 0h, 0h
+str_null: db 'null'
+str_true: db 'true'
+str_false: db 'false'
 
 section .data
 brk_init: dq 0x0
 brk_curr: dq 0x0
-brk_new: dq 0x0
-
+lit_null: dq '0x0'
+lit_true: dq '0x0'
+lit_false: dq '0x0'
 
 section .bss
-output_buffer: resb 128
+output_buffer: resb 512

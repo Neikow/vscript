@@ -1,23 +1,8 @@
-let x = true;
-debug 'true          ', x;
+let x: u64[8] = [0, 1, 2, 3, 4, 5];
+debug x;
+x.push(10);
+x.push(20);
+debug x;
+debug x.pop();
+debug x;
 
-let y = false;
-debug 'false         ', y;
-
-debug 'true && true  ', true && true;
-debug 'true && false ', true && false;
-debug 'false && true ', true && false;
-debug 'false && false', false && false;
-
-debug 'true || true  ', true || true;
-debug 'true || false ', true || false;
-debug 'false || true ', false || true;
-debug 'false || false', false || false;
-
-debug 'true !| true  ', true !| true;
-debug 'true !| false ', true !| false;
-debug 'false !| true ', true !| false;
-debug 'false !| false', false !| false;
-
-debug '!true         ', !true;
-debug '!false        ', !false;
