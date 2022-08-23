@@ -112,16 +112,17 @@ exit:
   ret
 
 ; Puts the program to sleep for n seconds;
-; rcx -> seconds
+; rcx -> seconds      (u64)
 sleep:
   push  rdi
   push  rsi
+  mov   rcx, [rcx + 2 * 8]
   mov   qword [ts_sec], rcx
   mov   qword [ts_nsec], 0
   mov   rax, SYS_NANOSLEEP
   mov   rdi, timespec
   mov   rsi, 0
+  syscall
   pop   rsi
   pop   rdi
-  syscall
   ret

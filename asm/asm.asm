@@ -64,6 +64,8 @@ while0:
 	mov		rcx, 1
 	call	u64_make
 	pop		rcx
+	push	rax
+	pop		rcx
 	call	sleep
 
 	jmp		while0

@@ -1161,11 +1161,11 @@ export function compiler(tree: SyntaxTree, path: string) {
       }
       case NT.statement_sleep: {
         if (!node.member) throw Errors.CompilerError();
-        const val = parseExpression(node.member, node.context, 'rcx', false);
+        const val = parseExpression(node.member, node.context, 'rcx', true);
 
         if (val.length > 1) throw Errors.CompilerError();
 
-        return val[0].before + I.call('sleep');
+        return val[0].before + I.pop('rcx') + I.call('sleep');
       }
       default:
         throw Errors.NotImplemented(node.NT);
