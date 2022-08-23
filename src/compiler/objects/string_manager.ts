@@ -1,28 +1,14 @@
-import { ParseResult } from '..';
+import { Assembly, ParseResult } from '..';
 import { Instructions } from '../instructions';
 
 export class StringManager {
   private string_count: number;
   private strings: { [key: string]: string };
   private I: Instructions;
-  private assembly: {
-    header: string;
-    text: string;
-    functions: string;
-    data: string;
-    rodata: string;
-    bss: string;
-  };
+  private assembly: Assembly;
 
   constructor(
-    assembly: {
-      header: string;
-      text: string;
-      functions: string;
-      data: string;
-      rodata: string;
-      bss: string;
-    },
+    assembly: Assembly,
     instructions: Instructions
   ) {
     this.assembly = assembly;

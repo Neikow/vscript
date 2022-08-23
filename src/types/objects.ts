@@ -2,6 +2,7 @@ import {
   NodeType,
   RawTypeNode,
   ReferenceNode,
+  SingleTypeNode,
   TypeNode,
   TypeValueNode,
   ValueNode,
@@ -20,6 +21,7 @@ export interface ObjectTypeProperty {
   kind: PropertyKind.type;
   name: string;
   location: Location;
+  type: SingleTypeNode;
 }
 
 export interface ObjectValueProperty {

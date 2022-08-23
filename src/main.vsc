@@ -1,17 +1,7 @@
-let x: u64[8] = [0, 1, 2, 3, 4, 5];
+let x: u64[8] = [10, 20, 30, 40, 50, 60];
 
-debug x.length;
+debug x[4];
 
-debug x;
+debug x[4] = 1;
 
-debug x.push(10);
-
-x.push(20);
-
-debug x;
-
-debug x.pop();
-
-debug x;
-
-debug x.length;
+debug x[4];

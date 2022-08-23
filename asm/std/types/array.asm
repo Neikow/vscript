@@ -114,3 +114,45 @@ array_pop:
 
   pop   rdi
   ret
+
+; access the element at index
+; rcx -> array            (ptr)
+; rdx -> index            (u64)
+; rax <- value at index   (ptr)
+array_access:
+  push  rbx
+  mov   rbx, [rdx + 2 * 8]
+  cmp   rbx, -1
+  je    err_out_of_bounds
+
+  cmp   rbx, [rcx + 3 * 8]
+  jge   err_out_of_bounds
+
+  push  rsi
+  mov   rsi, [rcx + 4 * 8]
+  mov   rax, [rsi + rbx * 8] 
+
+  pop   rsi
+  pop   rbx
+  ret
+
+; updates the element at index
+; rcx -> array            (ptr)
+; rdx -> index            (u64)
+; r8  -> value            (ptr)
+; rax <- value            (ptr)
+array_update:  
+  mov   rdx, [rdx + 2 * 8]
+  cmp   rdx, -1
+  je    err_out_of_bounds
+
+  cmp   rdx, [rcx + 3 * 8]
+  jge   err_out_of_bounds
+
+  push  rsi
+  mov   rsi, [rcx + 4 * 8]
+  mov   [rsi + rdx * 8], r8
+  mov   rax, r8
+
+  pop   rsi
+  ret

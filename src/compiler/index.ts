@@ -23,6 +23,7 @@ import { CompilerIO } from './compiler_io';
 import { Instructions } from './instructions';
 import { FunctionManger } from './objects/function_manager';
 import { StringManager } from './objects/string_manager';
+import { ErrorManager } from './std/error_manager';
 
 export interface ParseResult {
   before: string;
@@ -30,6 +31,15 @@ export interface ParseResult {
   on_update: string;
   pointer_offset?: number;
   operation?: OPERATOR;
+}
+
+export interface Assembly {
+  header: string;
+  text: string;
+  functions: string;
+  data: string;
+  rodata: string;
+  bss: string;
 }
 
 export interface ExpressionParser {
@@ -54,7 +64,7 @@ export function compiler(tree: SyntaxTree, path: string) {
   const I = new Instructions();
   const counter = I.counter;
 
-  const asm = {
+  const asm: Assembly = {
     header:
       '; --------------------------\n' +
       ';     Generated assembly    \n' +
@@ -87,6 +97,8 @@ export function compiler(tree: SyntaxTree, path: string) {
   const functions = new FunctionManger(asm, I, traveller);
   const strings = new StringManager(asm, I);
 
+  const errors = new ErrorManager();
+
   function makeLiteral(literal: string) {
     asm.rodata += `str_${literal}: db '${literal}'\n`;
     asm.data += `lit_${literal}: dq '0x0'\n`;
@@ -103,11 +115,20 @@ export function compiler(tree: SyntaxTree, path: string) {
   makeLiteral('true');
   makeLiteral('false');
 
+  errors.new({
+    code: 1,
+    label: 'out_of_bounds',
+    description: 'The given index is outside the bounds of the array.',
+    display: 'Error [Out Of Bounds]',
+  });
+
   asm.text +=
     '\n\n' +
     traveller(tree.root, tree.root) +
     I.xor('rcx', 'rcx', '0 exit code') +
     I.call('exit');
+
+  errors.compile(asm, I, 'asm/std/errors.asm');
 
   writeFileSync(
     path,
@@ -800,6 +821,87 @@ export function compiler(tree: SyntaxTree, path: string) {
 
             throw Errors.NotImplemented(node.left.NT);
           }
+          case 'access_computed': {
+            if (!node.left || !node.right) throw Errors.CompilerError();
+
+            const left_type = TypeHelper.getType(node.left, undefined);
+
+            if (left_type.NT !== NT.type_single) throw Errors.CompilerError();
+            if (typeof left_type.type === 'string')
+              throw Errors.CompilerError();
+            if (
+              left_type.type.kind !== LanguageObjectKind.instance ||
+              left_type.type.object !== Types.array.object
+            )
+              throw Errors.NotImplemented();
+
+            if (node.left.NT === NT.reference) {
+              const left = parseExpression(
+                node.left,
+                parent_context,
+                'rcx',
+                false
+              );
+              if (left.length > 1) throw Errors.CompilerError();
+
+              const right = parseExpression(
+                node.right,
+                parent_context,
+                'rdx',
+                true
+              );
+
+              if (right.length > 1) throw Errors.NotImplemented();
+
+              return [
+                {
+                  before:
+                    left[0].before +
+                    right[0].before +
+                    I.pop('rdx') +
+                    I.call('array_access') +
+                    (should_push ? I.push('rax') : ''),
+                  call: '',
+                  on_update: I.call('array_update'),
+                },
+              ];
+            }
+
+            throw Errors.NotImplemented(node.left.NT);
+          }
+          case 'assign': {
+            if (!node.left || !node.right) throw Errors.CompilerError();
+
+            const left = parseExpression(
+              node.left,
+              parent_context,
+              register,
+              false
+            );
+            if (left.length > 1) throw Errors.NotImplemented();
+
+            const right = parseExpression(
+              node.right,
+              parent_context,
+              register,
+              true
+            );
+            if (right.length > 1) throw Errors.NotImplemented();
+
+            return [
+              {
+                before:
+                  left[0].before +
+                  right[0].before +
+                  I.pop('r8') +
+                  left[0].on_update +
+                  (should_push ? I.push('rax') : ''),
+                call: '',
+                on_update: '',
+              },
+            ];
+          }
+
           default: {
             throw Errors.NotImplemented(node.op);
           }

@@ -26,6 +26,7 @@ const array_type_properties: { [key in ArrayTypeProperties]: ObjectProperty } =
       kind: PropertyKind.type,
       location: Location.std,
       name: 'type',
+      type: { NT: NodeType.type_single, type: 'any' },
     } as const,
     length: {
       kind: PropertyKind.value,
@@ -107,6 +108,12 @@ class VSCTypeArr implements VSCType {
     if (res) return res;
 
     const properties_overrides: Partial<typeof array_type_properties> = {
+      $type: {
+        kind: PropertyKind.type,
+        name: 'type',
+        location: Location.std,
+        type: { NT: NodeType.type_single, type: type_properties.type },
+      },
       pop: {
         kind: PropertyKind.value,
         location: Location.std,

@@ -51,37 +51,37 @@ _start:
 
 	; initial values
 	push	rcx
-	mov		rcx, 0
+	mov		rcx, 10
 	call	u64_make
 	pop		rcx
 	mov		[rdi + 0 * 8], rax
 
 	push	rcx
-	mov		rcx, 1
+	mov		rcx, 20
 	call	u64_make
 	pop		rcx
 	mov		[rdi + 1 * 8], rax
 
 	push	rcx
-	mov		rcx, 2
+	mov		rcx, 30
 	call	u64_make
 	pop		rcx
 	mov		[rdi + 2 * 8], rax
 
 	push	rcx
-	mov		rcx, 3
+	mov		rcx, 40
 	call	u64_make
 	pop		rcx
 	mov		[rdi + 3 * 8], rax
 
 	push	rcx
-	mov		rcx, 4
+	mov		rcx, 50
 	call	u64_make
 	pop		rcx
 	mov		[rdi + 4 * 8], rax
 
 	push	rcx
-	mov		rcx, 5
+	mov		rcx, 60
 	call	u64_make
 	pop		rcx
 	mov		[rdi + 5 * 8], rax
@@ -93,72 +93,48 @@ _start:
 
 	; statement_debug (u64)
 	mov		rcx, [rbp - 2 * 8]
-	push	rcx	; = &x
-	pop		rax
-	mov		rcx, [rax + 3 * 8]	; array length
-	call	u64_make	; convert length to object
-	push	rax
-	pop		rcx
-	call	u64_stdout
-	call	linefeed
-
-	; statement_debug (array)
-	mov		rcx, [rbp - 2 * 8]
-	mov		rdx, u64_stdout	; printing function address
-	call	array_stdout
-	call	linefeed
-
-	; statement_debug (u64)
-	mov		rcx, [rbp - 2 * 8]
-	push	rcx	; = &x
 	push	rcx
-	mov		rcx, 10
+	mov		rcx, 4
 	call	u64_make
 	pop		rcx
 	push	rax
 	pop		rdx
-	call	array_push
+	call	array_access
 	push	rax
 	pop		rcx
 	call	u64_stdout
 	call	linefeed
 
+	; statement_debug (u64)
 	mov		rcx, [rbp - 2 * 8]
-	push	rcx	; = &x
 	push	rcx
-	mov		rcx, 20
+	mov		rcx, 4
 	call	u64_make
 	pop		rcx
 	push	rax
 	pop		rdx
-	call	array_push
-	; statement_debug (array)
-	mov		rcx, [rbp - 2 * 8]
-	mov		rdx, u64_stdout	; printing function address
-	call	array_stdout
-	call	linefeed
-
-	; statement_debug (u64)
-	mov		rcx, [rbp - 2 * 8]
-	push	rcx	; = &x
-	call	array_pop
+	call	array_access
+	push	rcx
+	mov		rcx, 1
+	call	u64_make
+	pop		rcx
+	push	rax
+	pop		r8
+	call	array_update
 	push	rax
 	pop		rcx
 	call	u64_stdout
 	call	linefeed
 
-	; statement_debug (array)
-	mov		rcx, [rbp - 2 * 8]
-	mov		rdx, u64_stdout	; printing function address
-	call	array_stdout
-	call	linefeed
-
 	; statement_debug (u64)
 	mov		rcx, [rbp - 2 * 8]
-	push	rcx	; = &x
-	pop		rax
-	mov		rcx, [rax + 3 * 8]	; array length
-	call	u64_make	; convert length to object
+	push	rcx
+	mov		rcx, 4
+	call	u64_make
+	pop		rcx
+	push	rax
+	pop		rdx
+	call	array_access
 	push	rax
 	pop		rcx
 	call	u64_stdout
@@ -171,6 +147,8 @@ section .rodata
 str_null: db 'null'
 str_true: db 'true'
 str_false: db 'false'
+str_err_out_of_bounds_name: db 'Error [Out Of Bounds]'
+str_err_out_of_bounds_desc: db 'The given index is outside the bounds of the array.'
 
 section .data
 brk_init: dq 0x0

@@ -2,6 +2,7 @@ import { Errors } from '../errors';
 import {
   BooleanLiteralNode,
   DefinitionType as DT,
+  ExpressionNode,
   Node,
   NodeType as NT,
   NumberLiteralNode,
@@ -20,6 +21,7 @@ import {
   LanguageObjectInstance,
   LanguageObjectKind,
   ObjectProperty,
+  ObjectTypeProperty,
   PropertyKind,
 } from './objects';
 import {
@@ -189,6 +191,54 @@ const TypeHelper = {
               }
             }
           }
+
+          case 'access_computed': {
+            if (!node.left) throw Errors.ParserError('Missing left operand');
+            if (!node.right) throw Errors.ParserError('Missing right operand');
+
+            const target_type_node = TypeHelper.getType(node.left, params);
+            if (
+              target_type_node.NT === NT.type_union ||
+              target_type_node.NT === NT.type_tuple
+            )
+              throw Errors.NotImplemented();
+
+            if (typeof target_type_node.type === 'string')
+              throw Errors.NotImplemented(
+                TypeHelper.formatType(target_type_node)
+              );
+
+            if (
+              target_type_node.type.kind === LanguageObjectKind.instance &&
+              target_type_node.type.object === Types.array.object
+            ) {
+              const computed_type = TypeHelper.getType(node.right, params);
+
+              if (computed_type.NT !== NT.type_single)
+                throw Errors.NotImplemented(computed_type.NT);
+
+              if (computed_type.type !== Types.u64.object)
+                throw Errors.TypeError(
+                  (node.right as unknown as ExpressionNode).location,
+                  { NT: NT.type_single, type: Types.u64.object },
+                  computed_type
+                );
+
+              if (!target_type_node.type.properties_overrides)
+                throw Errors.ParserError();
+
+              const val = target_type_node.type.properties_overrides.get(
+                '$type'
+              ) as ObjectTypeProperty;
+
+              if (!val) throw Errors.ParserError();
+
+              return val.type;
+            }
+
+            throw Errors.NotImplemented();
+          }
+
           case 'access_property': {
             if (!node.left) throw Errors.ParserError('Missing left operand');
             if (!node.right) throw Errors.ParserError('Missing right operand');
@@ -265,14 +315,10 @@ const TypeHelper = {
               }
             }
 
-            if (
-              target_type_node.type == TYPE_ANY ||
-              target_type_node.type == TYPE_UNKNOWN ||
-              target_type_node.type == TYPE_VOID ||
-              target_type_node.type == TYPE_UNDEFINED ||
-              target_type_node.type == TYPE_NEVER
-            )
-              throw Errors.NotImplemented('any & unknown & void & undefined');
+            if (typeof target_type_node.type === 'string')
+              throw Errors.NotImplemented(
+                TypeHelper.formatType(target_type_node)
+              );
 
             if (target_type_node.type.kind === LanguageObjectKind.instance) {
               if (!target_type_node.type.object.properties) {
@@ -533,6 +579,30 @@ const TypeHelper = {
             }
 
             throw Errors.NotImplemented('incr | decr');
+          }
+          case 'assign': {
+            if (!node.left || !node.right)
+              throw Errors.ParserError('Missing operands.');
+
+            const lTypeNode = TypeHelper.getType(node.left, params);
+            const rTypeNode = TypeHelper.getType(node.right, params);
+
+            if (
+              lTypeNode.NT !== NT.type_single ||
+              rTypeNode.NT !== NT.type_single
+            )
+              throw Errors.NotImplemented();
+
+            if (
+              typeof lTypeNode.type === 'string' ||
+              typeof rTypeNode.type === 'string'
+            )
+              throw Errors.NotImplemented();
+
+            if (lTypeNode.type !== rTypeNode.type)
+              throw Errors.TypeCheckError('');
+
+            return lTypeNode;
           }
 
           default: {
