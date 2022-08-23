@@ -156,3 +156,78 @@ array_update:
 
   pop   rsi
   ret
+
+; copies an array to a new address
+; rsi -> source array   (ptr)
+; rdi -> destination    (ptr)
+; rcx -> array size     (qword)
+array_copy:
+  push  rdi
+  push  rsi
+  push  rbx
+.copy_loop:
+  dec   rcx
+  mov   rbx, qword [rsi]
+  mov   qword [rdi], rbx
+  add   rsi, 8
+  add   rdi, 8
+  cmp   rcx, 0
+  jnz   .copy_loop
+
+  pop   rbx
+  pop   rsi
+  pop   rdi
+  ret
+
+; creates a new array by repeating another array
+; rcx -> array              (ptr)
+; rdx -> count              (u64)
+; rax <- new array address  (ptr)
+array_repeat:
+  push  rsi
+  push  rdi
+  mov   rsi, rcx         ; source array ptr
+  mov   rdi, [brk_curr]  ; new array destination ptr
+  push  rdi
+  xor   rbx, rbx            ; destination array length
+  mov   rcx, [rsi + 3 * 8]  ; source array length
+  mov   rsi, [rsi + 4 * 8]
+  mov   rax, [rdx + 2 * 8]  ; repeat count
+
+.repeatLoop:
+  dec   rax           ; missing repeats
+  push  rax
+  push  rbx
+  push  rcx
+  call  array_copy
+  pop   rcx
+  pop   rbx
+  mov   rax, rcx
+  mov   rdx, 8
+  mul   rdx
+  add   rdi, rax      ; destination array ptr with offset
+  add   rbx, rcx      ; destination array length
+  pop   rax           ; missing repeats
+  cmp   rax, 0
+  jnz   .repeatLoop
+
+  pop   rdi   ; destination array ptr
+  push  rdi
+
+  mov   rax, 8
+  mul   rbx
+  add   rdi, rax
+  mov   qword [brk_curr], rdi
+
+  mov   rcx, rbx     ; destination array length
+  pop   rdx          ; destination array ptr
+  push  rcx
+  call  array_make
+  pop   rcx
+  mov   [rax + 3 * 8], rcx
+
+  pop   rdi
+  pop   rsi
+  ret
+
+

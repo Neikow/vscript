@@ -119,8 +119,8 @@ export const KEYWORDS = [
   'debug',
   'error',
   'return',
-  'const',
   'let',
+  'mut',
   'exit',
   'fn',
   // 'obj',
@@ -141,6 +141,7 @@ export const KEYWORDS = [
   'declare',
   'goto',
   'label',
+  'sleep',
   // 'switch',
   // 'assert',
   'use',
@@ -334,6 +335,7 @@ export interface VSCType {
 export interface BranchParameters {
   return_type: TypeNode;
   variable_types: Map<number, TypeNode>;
+  should_be_const: boolean;
 }
 
 export interface TypeCheckResult {

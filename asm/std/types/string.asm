@@ -140,7 +140,6 @@ string_repeat:
   push  rdi
 
   add   rdi, rbx
-  add   rdi, rcx
   mov   [brk_curr], rdi
 
   mov   rcx, rbx     ; destination string length  

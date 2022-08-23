@@ -3,6 +3,8 @@ import { SyntaxTree } from '../ast';
 import {
   ContextNode,
   DefinitionType as DT,
+  ExpressionListNode,
+  ExpressionNode,
   FunctionNode,
   Node,
   NodeType as NT,
@@ -57,7 +59,7 @@ export function compiler(tree: SyntaxTree, path: string) {
 
   const options = {
     memory: {
-      size: 1024 * 1024, // 1MB
+      size: 4 * 1024 * 1024, // 4 MB
     },
   };
 
@@ -71,7 +73,8 @@ export function compiler(tree: SyntaxTree, path: string) {
       '; --------------------------\n' +
       "\n%include\t'utils.asm'\n" +
       "\n%include\t'std/types.asm'\n" +
-      "\n%include\t'std/errors.asm'\n",
+      "\n%include\t'std/errors.asm'\n" +
+      "\n%include\t'std/memory.asm'\n",
     text:
       '\nsection .text\n' +
       'global  _start\n' +
@@ -88,7 +91,10 @@ export function compiler(tree: SyntaxTree, path: string) {
       '\n',
     functions: '',
     rodata: '',
-    data: 'brk_init: dq 0x0\n' + 'brk_curr: dq 0x0\n',
+    data:
+      'brk_init: dq 0x0\n' +
+      'brk_curr: dq 0x0\n' +
+      'timespec:\n\tts_sec: dq 0\n\tts_nsec: dq 0\n',
     bss: 'output_buffer: resb 512\n',
   };
 
@@ -241,6 +247,7 @@ export function compiler(tree: SyntaxTree, path: string) {
         const ARGUMENTS_OFFSET = 2;
 
         switch (node.definition.DT) {
+          case DT.const:
           case DT.var: {
             if (node.definition.type_check_id === undefined)
               throw Errors.CompilerError();
@@ -670,6 +677,27 @@ export function compiler(tree: SyntaxTree, path: string) {
               ];
             }
 
+            if (
+              l_type.type.kind === LanguageObjectKind.instance &&
+              l_type.type.object === Types.array.object &&
+              r_type.type === Types.u64.object
+            ) {
+              return [
+                {
+                  before:
+                    left[0].before +
+                    right[0].before +
+                    I.pop('rdx') +
+                    I.pop('rcx') +
+                    I.call('array_repeat') +
+                    (should_push ? I.push('rax') : ''),
+
+                  call: '',
+                  on_update: '',
+                },
+              ];
+            }
+
             if (l_type.type !== r_type.type) throw Errors.NotImplemented();
 
             if (
@@ -1004,6 +1032,9 @@ export function compiler(tree: SyntaxTree, path: string) {
             functions.add(node);
             return '';
           }
+          case DT.const: {
+            // TODO: make proper implementation
+          }
           case DT.var: {
             if (!node.value) throw Errors.NotImplemented();
 
@@ -1097,20 +1128,80 @@ export function compiler(tree: SyntaxTree, path: string) {
 
         return code;
       }
-      // case NT.statement_while: {
-      //   let id = counter.getStatementID(node.NT);
+      case NT.statement_while: {
+        let id = counter.getStatementID(node.NT);
 
-      //   const label_success = `while${id}`;
-      //   const label_fail = `end_while${id}`;
+        const label_success = `while${id}`;
+        const label_fail = `end_while${id}`;
 
-      //   if (!node.child) throw Errors.CompilerError();
-      //   if (!node.condition) throw Errors.CompilerError();
+        if (!node.child) throw Errors.CompilerError();
+        if (!node.condition) throw Errors.CompilerError();
 
-      //   const body = aux(node.child, node.child);
+        const body = traveller(node.child, node.child);
 
-      // }
+        const condition = parseCondition(
+          node.condition,
+          label_success,
+          label_fail,
+          parent_context,
+          'rax'
+        );
+
+        let code =
+          `${label_success}:\n` +
+          condition.before +
+          '\n' +
+          body +
+          '\n' +
+          I.jmp(label_success) +
+          '\n' +
+          `${label_fail}:\n`;
+
+        return code;
+      }
+      case NT.statement_sleep: {
+        if (!node.member) throw Errors.CompilerError();
+        const val = parseExpression(node.member, node.context, 'rcx', false);
+
+        if (val.length > 1) throw Errors.CompilerError();
+
+        return val[0].before + I.call('sleep');
+      }
       default:
         throw Errors.NotImplemented(node.NT);
     }
+  }
+
+  function parseCondition(
+    node: ExpressionListNode | ExpressionNode,
+    label_success: string,
+    label_fail: string,
+    parent_context: ContextNode,
+    register: typeof I.registers[number]
+  ): ParseResult {
+    const expr = parseExpression(node, parent_context, register, false);
+
+    if (expr.length > 1) throw Errors.NotImplemented();
+
+    const type = TypeHelper.getType(node, undefined);
+
+    if (type.NT !== NT.type_single) throw Errors.NotImplemented();
+
+    if (typeof type.type === 'string') throw Errors.NotImplemented();
+
+    let condition: string;
+
+    if (type.type.kind === LanguageObjectKind.instance)
+      throw Errors.NotImplemented();
+
+    if (type.type === Types.bool.object) {
+      condition = I.cmp('qword [rax + 2 * 8]', '0') + I.je(label_fail);
+    } else throw Errors.NotImplemented(TypeHelper.formatType(type));
+
+    return {
+      before: expr[0].before + condition,
+      call: '',
+      on_update: '',
+    };
   }
 }

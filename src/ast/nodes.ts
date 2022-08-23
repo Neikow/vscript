@@ -42,6 +42,7 @@ export const enum NodeType {
   expression_list = 'expression_list',
   expression_list_reference = 'expression_list_reference',
   statement_debug = 'statement_debug',
+  statement_sleep = 'statement_sleep',
   statement_return = 'statement_return',
   statement_exit = 'statement_exit',
   reference = 'reference',
@@ -67,12 +68,14 @@ export const enum NodeType {
   type_with_parameters = 'type_with_parameters',
   type_raw = 'raw_type',
   array = 'array',
+  array_repeat = 'array_repeat',
   value_array = 'value_array',
 }
 export type Node = ComputableNode | SyntaxNode;
 
 export type ComputableNode =
   | ArrayExpressionNode
+  | ArrayRepeatNode
   | ExpressionListNode
   | ExpressionNode
   | ExpressionListReference
@@ -91,6 +94,7 @@ export type ComputableNode =
 
 export type SyntaxNode =
   | StatementDebugNode
+  | StatementSleepNode
   | StatementWhileNode
   | StatementIfElseNode
   | StatementReturnNode
@@ -131,10 +135,7 @@ export interface ContextNode extends NodeBase {
 export interface ReferenceNode extends NodeBase {
   NT: NodeType.reference;
   definition: DefinitionNode;
-  mutated: boolean;
-  // a reference node that was not mutated before
-  // tree collapse would be changed to a value
-  // node for performance optimization
+  location: Location;
 }
 
 export interface ExpressionNode extends NodeBase {
@@ -154,6 +155,13 @@ export interface ArrayExpressionNode extends NodeBase {
   location: Location;
   value_type: LanguageObjectInstance | undefined;
   list: ExpressionListNode | undefined;
+}
+
+export interface ArrayRepeatNode extends NodeBase {
+  NT: NodeType.array_repeat;
+  location: Location;
+  array: ArrayExpressionNode;
+  count: NumberLiteralNode;
 }
 
 export interface ExpressionListNode extends NodeBase {
@@ -380,7 +388,14 @@ export interface DefinitionNodeConst extends NodeBase {
   mutated: false;
   location: Location;
   type: TypeNode | RawTypeNode;
-  value: ExpressionNode | ExpressionListNode | undefined;
+  value:
+    | LiteralNode
+    | OperatorNode
+    | ExpressionNode
+    | ReferenceNode
+    | ExpressionListNode
+    | ArrayExpressionNode
+    | undefined;
 }
 
 export interface DefinitionNodeConditionAlias extends NodeBase {
@@ -529,6 +544,12 @@ export interface StatementReturnNode extends NodeBase {
 
 export interface StatementDebugNode extends NodeBase {
   NT: NodeType.statement_debug;
+  context: ContextNode;
+  member: ExpressionNode | ExpressionListNode | OperatorNode | undefined;
+}
+
+export interface StatementSleepNode extends NodeBase {
+  NT: NodeType.statement_sleep;
   context: ContextNode;
   member: ExpressionNode | ExpressionListNode | OperatorNode | undefined;
 }

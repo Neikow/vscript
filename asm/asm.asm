@@ -8,6 +8,8 @@
 
 %include	'std/errors.asm'
 
+%include	'std/memory.asm'
+
 section .text
 global  _start
 
@@ -20,7 +22,7 @@ _start:
 	push	rbp
 
 ; Memory Allocation
-	mov		rcx, 1048576
+	mov		rcx, 4194304
 	call	memalloc
 
 	mov		rcx, 4	; literal length
@@ -40,106 +42,33 @@ _start:
 
 
 
-	mov		rdx, [brk_curr]	; array base
-	mov		rdi, rdx
-	add		rdi, 8 * 8	; allocate space for the array
-	mov		[brk_curr], rdi
-	mov		rcx, 8
-	call	array_make
-	push	rax	; array address
-	mov		rdi, rdx
+while0:
+	push	rcx
+	mov		rcx, 1	; bool value
+	call	bool_make
+	pop		rcx
+	cmp		qword [rax + 2 * 8], 0
+	je		end_while0
 
-	; initial values
+	; statement_debug (u64)
 	push	rcx
 	mov		rcx, 10
 	call	u64_make
 	pop		rcx
-	mov		[rdi + 0 * 8], rax
-
-	push	rcx
-	mov		rcx, 20
-	call	u64_make
-	pop		rcx
-	mov		[rdi + 1 * 8], rax
-
-	push	rcx
-	mov		rcx, 30
-	call	u64_make
-	pop		rcx
-	mov		[rdi + 2 * 8], rax
-
-	push	rcx
-	mov		rcx, 40
-	call	u64_make
-	pop		rcx
-	mov		[rdi + 3 * 8], rax
-
-	push	rcx
-	mov		rcx, 50
-	call	u64_make
-	pop		rcx
-	mov		[rdi + 4 * 8], rax
-
-	push	rcx
-	mov		rcx, 60
-	call	u64_make
-	pop		rcx
-	mov		[rdi + 5 * 8], rax
-
-	pop		rax
-	push	rax
-	mov		qword [rax + 3 * 8], 6	; initial size
-	inc		qword [rax + 1 * 8]
-
-	; statement_debug (u64)
-	mov		rcx, [rbp - 2 * 8]
-	push	rcx
-	mov		rcx, 4
-	call	u64_make
-	pop		rcx
-	push	rax
-	pop		rdx
-	call	array_access
 	push	rax
 	pop		rcx
 	call	u64_stdout
 	call	linefeed
 
-	; statement_debug (u64)
-	mov		rcx, [rbp - 2 * 8]
-	push	rcx
-	mov		rcx, 4
-	call	u64_make
-	pop		rcx
-	push	rax
-	pop		rdx
-	call	array_access
 	push	rcx
 	mov		rcx, 1
 	call	u64_make
 	pop		rcx
-	push	rax
-	pop		r8
-	call	array_update
-	push	rax
-	pop		rcx
-	call	u64_stdout
-	call	linefeed
+	call	sleep
 
-	; statement_debug (u64)
-	mov		rcx, [rbp - 2 * 8]
-	push	rcx
-	mov		rcx, 4
-	call	u64_make
-	pop		rcx
-	push	rax
-	pop		rdx
-	call	array_access
-	push	rax
-	pop		rcx
-	call	u64_stdout
-	call	linefeed
+	jmp		while0
 
+end_while0:
 	xor		rcx, rcx	; 0 exit code
 	call	exit
 
@@ -153,6 +82,9 @@ str_err_out_of_bounds_desc: db 'The given index is outside the bounds of the arr
 section .data
 brk_init: dq 0x0
 brk_curr: dq 0x0
+timespec:
+	ts_sec: dq 0
+	ts_nsec: dq 0
 lit_null: dq '0x0'
 lit_true: dq '0x0'
 lit_false: dq '0x0'

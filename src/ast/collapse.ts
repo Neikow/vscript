@@ -66,11 +66,9 @@ export const collapse = (syntaxTree: ContextNode): ContextNode => {
         node.list = recurse(node.list) as any;
         return node;
       }
+      case NT.statement_sleep:
+      case NT.statement_return:
       case NT.statement_debug: {
-        node.member = recurse(node.member) as any;
-        return node;
-      }
-      case NT.statement_return: {
         node.member = recurse(node.member) as any;
         return node;
       }

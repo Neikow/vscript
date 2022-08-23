@@ -30,8 +30,8 @@
 					"match": "\\b(let)\\b"
 				},
 				{
-					"name": "storage.type.variable.constant.vsc",
-					"match": "\\b(const)\\b"
+					"name": "storage.type.variable.mutable.vsc",
+					"match": "\\b(mut)\\b"
 				},
 				{
 					"name": "storage.type.struct.vsc",
@@ -95,7 +95,7 @@
 				},
 				{
 					"name": "keyword.control.flow.vsc",
-					"match": "\\b(if|else|while|do|as|for|exit|return|goto|label)\\b"
+					"match": "\\b(if|else|while|do|as|for|exit|return|goto|label|sleep)\\b"
 				},
 				{
 					"name": "keyword.operator.vsc",

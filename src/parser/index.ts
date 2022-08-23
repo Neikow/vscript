@@ -405,6 +405,12 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
       return;
     }
 
+    if (curr_node.NT === AST.NodeType.statement_sleep) {
+      curr_node.context.members.push(curr_node);
+      curr_node = node_stack.pop();
+      return;
+    }
+
     if (curr_node.NT === AST.NodeType.statement_while) {
       const parent_context = context_stack.pop();
       if (!parent_context) throw Errors.ParserError();
@@ -651,13 +657,13 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
   }
 
   function def_identifier(
-    type: AST.DefinitionType.const | AST.DefinitionType.var
+    is_mutable: boolean
   ): AST.DefinitionNodeConst | AST.DefinitionNodeVar | undefined {
     expect(TK.identifier);
 
     const res: AST.DefinitionNodeConst | AST.DefinitionNodeVar = {
       NT: AST.NodeType.definition,
-      DT: type,
+      DT: is_mutable ? AST.DefinitionType.var : AST.DefinitionType.const,
       mutated: false,
       definition_id: undefined,
       type_check_id: undefined,
@@ -681,18 +687,19 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
     | AST.ObjectReferenceNode
     | undefined {
     const literal = curr_tok!.val;
-    used_literals.push({ val: literal, loc: curr_tok!.loc });
+    const loc = curr_tok!.loc;
+    used_literals.push({ val: literal, loc: loc });
 
-    const def = getDefinitionNode(curr_ctx, literal, curr_tok!.loc);
+    const def = getDefinitionNode(curr_ctx, literal, loc);
     if (!def) {
-      const obj = getObjectNode(curr_ctx, literal, curr_tok!.loc);
+      const obj = getObjectNode(curr_ctx, literal, loc);
 
-      if (!obj) throw Errors.UnknownLiteral(literal, curr_tok!.loc);
+      if (!obj) throw Errors.UnknownLiteral(literal, loc);
 
       const node: AST.ObjectReferenceNode = {
         NT: AST.NodeType.object_reference,
         value: obj,
-        location: curr_tok!.loc,
+        location: loc,
       };
       next();
 
@@ -709,7 +716,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
     const node: AST.ReferenceNode = {
       NT: AST.NodeType.reference,
       definition: def,
-      mutated: def.mutated,
+      location: loc,
     };
 
     next();
@@ -831,6 +838,16 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
       }
 
       return res;
+    } else if (accept(TK.keyword, ['['], true)) {
+      const prev = prev_tok!;
+      const array: AST.ArrayExpressionNode = {
+        list: expression_list(),
+        NT: AST.NodeType.array,
+        value_type: undefined,
+        location: prev.loc,
+      };
+      expect(TK.keyword, [']'], true);
+      return array;
     } else if (accept(TK.identifier)) {
       const res = literal_identifier();
 
@@ -1150,23 +1167,9 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
       location: curr_tok!.loc,
     };
 
-    if (accept(TK.keyword, ['['], true)) {
-      const prev = prev_tok!;
-      const array: AST.ArrayExpressionNode = {
-        list: expression_list(),
-        NT: AST.NodeType.array,
-        value_type: undefined,
-        // TODO: proper location
-        location: prev.loc,
-      };
-      node.member = array;
-      expect(TK.keyword, [']'], true);
-      return node;
-    } else {
-      const res = addition_term();
-      if (!res) throw Errors.ParserError('Expected expression.');
-      node.member = res;
-    }
+    const res = addition_term();
+    if (!res) throw Errors.ParserError('Expected expression.');
+    node.member = res;
 
     while (accept(TK.keyword, ['+', '-'], true)) {
       const op_tok = prev_tok!;
@@ -1428,10 +1431,7 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
     return undefined;
   }
 
-  function definition(
-    type: AST.DefinitionType.const | AST.DefinitionType.var,
-    isUnreachable = false
-  ): void {
+  function definition(isUnreachable = false): void {
     if (isUnreachable) throw Errors.UnreachableCode(prev_tok!);
 
     const members: (AST.DefinitionNodeConst | AST.DefinitionNodeVar)[] = [];
@@ -1440,23 +1440,25 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
       members: members,
     });
 
-    const res = def_identifier(type);
+    let is_mutable = false;
+    if (accept(TK.keyword, ['mut'], true)) is_mutable = true;
+
+    const res = def_identifier(is_mutable);
     if (!res) throw Errors.ParserError();
     members.push(res);
 
     while (accept(TK.keyword, [','], true)) {
-      const res = def_identifier(type);
+      const res = def_identifier(is_mutable);
       if (!res) break;
       members.push(res);
     }
 
-    if (accept(TK.keyword, [':'], true)) {
-      const var_type = type_union();
-      if (!var_type) throw Errors.ParserError('Unexpected Token');
-      consumeType(var_type);
-    }
+    expect(TK.keyword, [':'], true);
+    const var_type = type_union();
+    if (!var_type) throw Errors.ParserError('Unexpected Token');
+    consumeType(var_type);
 
-    if (type == AST.DefinitionType.var && accept(TK.keyword, [';'], true))
+    if (is_mutable && accept(TK.keyword, [';'], true))
       return endNode(AST.NodeType.definition_list);
 
     expect(TK.keyword, ['='], true);
@@ -1479,6 +1481,25 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
 
     expect(TK.keyword, [';'], true);
     endNode(AST.NodeType.definition_list);
+  }
+
+  function statement_sleep(isUnreachable = false) {
+    const node: AST.StatementSleepNode = {
+      NT: AST.NodeType.statement_sleep,
+      context: curr_ctx,
+      member: undefined,
+    };
+    newNode(node);
+
+    if (isUnreachable) throw Errors.UnreachableCode(prev_tok!);
+
+    const res = expression_list();
+    if (!res) throw Errors.ParserError('Expected expression.');
+
+    node.member = res;
+
+    expect(TK.keyword, [';'], true);
+    endNode(AST.NodeType.statement_sleep);
   }
 
   function statement_debug(isUnreachable = false) {
@@ -1911,6 +1932,9 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
     if (accept(TK.keyword, ['debug'], true)) {
       statement_debug(isUnreachable);
       block(isUnreachable);
+    } else if (accept(TK.keyword, ['sleep'], true)) {
+      statement_sleep(isUnreachable);
+      block(isUnreachable);
     } else if (accept(TK.keyword, ['while'], true)) {
       statement_while(isUnreachable);
       block(isUnreachable);
@@ -1996,11 +2020,8 @@ export function parse(tokens: Token[], context: AST.ContextNode) {
       context_block(isUnreachable);
       expect(TK.keyword, ['}'], true);
       block(isUnreachable);
-    } else if (accept(TK.keyword, ['const'], true)) {
-      definition(AST.DefinitionType.const, isUnreachable);
-      block(isUnreachable);
     } else if (accept(TK.keyword, ['let'], true)) {
-      definition(AST.DefinitionType.var, isUnreachable);
+      definition(isUnreachable);
       block(isUnreachable);
     } else if (accept(TK.keyword, ['struct'], true)) {
       struct(isUnreachable);

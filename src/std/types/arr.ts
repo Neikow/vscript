@@ -16,7 +16,6 @@ import {
 import { Location, TYPE_ANY, VSCType } from '../../types/types';
 import VSCTypeUint from './u64';
 import VSCTypeFun from './fun';
-import { Types } from '.';
 
 type ArrayTypeProperties = '$type' | 'length' | 'pop' | 'push';
 

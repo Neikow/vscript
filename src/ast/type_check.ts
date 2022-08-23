@@ -10,17 +10,24 @@ import {
 } from '../types/objects';
 import { Types } from '../std/types';
 import {
+  ArrayExpressionNode,
+  ArrayRepeatNode,
   ContextNode,
   DefinitionType as DT,
+  ExpressionListNode,
+  ExpressionNode,
   LanguageDefinition,
+  LiteralNode,
   Node,
   NodeType as NT,
   OperatorNode,
+  ReferenceNode,
   TypeNode,
   UnionTypeNode,
 } from './nodes';
 import {
   BranchParameters,
+  Location,
   TypeCheckResult,
   TYPE_ANY,
   TYPE_NEVER,
@@ -72,8 +79,68 @@ export const typeChecker = (tree: SyntaxTree) => {
     return TypeHelper.mergeTypeConstraints([res], defaults);
   }
 
+  function compileConst(
+    node: Node
+  ): LiteralNode | ArrayExpressionNode | ReferenceNode | OperatorNode {
+    switch (node.NT) {
+      case NT.expression: {
+        if (!node.member) throw Errors.ParserError();
+        return compileConst(node.member);
+      }
+      case NT.operator: {
+        switch (node.op) {
+          case 'mul': {
+            if (!node.left || !node.right) throw Errors.ParserError();
+            const left = compileConst(node.left);
+            const right = compileConst(node.right);
+
+            if (
+              (<LiteralNode>left).value_type === Types.u64.object &&
+              (<LiteralNode>right).value_type === Types.u64.object
+            ) {
+              return {
+                NT: NT.literal_number,
+                value_type: Types.u64.object,
+                location: Location.computed,
+                value: `${
+                  parseInt((<LiteralNode>left).value as string) *
+                  parseInt((<LiteralNode>right).value as string)
+                }`,
+              };
+            } else {
+              return node;
+            }
+          }
+          default: {
+            throw Errors.NotImplemented(node.op);
+          }
+        }
+      }
+
+      case NT.reference: {
+        return node;
+      }
+
+      case NT.array:
+        return node;
+
+      case NT.literal_number:
+      case NT.literal_string:
+      case NT.literal_boolean:
+      case NT.literal_builtin:
+        return node;
+
+      default:
+        throw Errors.NotImplemented(node.NT);
+    }
+  }
+
   function compileTypes(node: ContextNode) {
     node.definitions.forEach((def) => {
+      if (def.node.DT === DT.const) {
+        def.node.value = compileConst(def.node.value!);
+      }
+
       if (def.child_type.NT === NT.type_raw) {
         def.node.type = TypeHelper.compileType(def.child_type);
         def.child_type = def.node.type;
@@ -195,6 +262,25 @@ export const typeChecker = (tree: SyntaxTree) => {
         return recurse(node.member, params);
       }
 
+      case NT.statement_sleep: {
+        if (!node.member) throw Errors.ParserError('missing expression');
+
+        const res = recurse(node.member, params);
+
+        const type = TypeHelper.getType(node.member, params);
+
+        if (type.NT !== NT.type_single) throw Errors.NotImplemented(type.NT);
+
+        if (type.type !== Types.u64.object)
+          throw Errors.TypeError(
+            (<ExpressionNode>node.member).location,
+            { NT: NT.type_single, type: Types.u64.object },
+            type
+          );
+
+        return res;
+      }
+
       case NT.definition: {
         switch (node.DT) {
           case DT.const:
@@ -214,36 +300,36 @@ export const typeChecker = (tree: SyntaxTree) => {
               throw Errors.TypeCheckError(NT.type_raw);
             }
 
-            // default behavior, set variable type to value type if not specified.
-            if (node.type.type === TYPE_UNKNOWN && node.value !== undefined) {
-              const type_node = TypeHelper.getType(node.value, params);
+            // // default behavior, set variable type to value type if not specified.
+            // if (node.type.type === TYPE_UNKNOWN && node.value !== undefined) {
+            //   const type_node = TypeHelper.getType(node.value, params);
 
-              if (type_node.NT === NT.type_union) {
-                throw Errors.NotImplemented(NT.type_union);
-              }
+            //   if (type_node.NT === NT.type_union) {
+            //     throw Errors.NotImplemented(NT.type_union);
+            //   }
 
-              if (type_node.NT === NT.type_tuple) {
-                throw Errors.NotImplemented(NT.type_union);
-              }
+            //   if (type_node.NT === NT.type_tuple) {
+            //     throw Errors.NotImplemented(NT.type_union);
+            //   }
 
-              const res = recurse(node.value, params);
+            //   const res = recurse(node.value, params);
 
-              node.type =
-                type_node.type == TYPE_VOID
-                  ? {
-                      NT: NT.type_single,
-                      type: TYPE_UNKNOWN,
-                    }
-                  : type_node;
+            //   node.type =
+            //     type_node.type == TYPE_VOID
+            //       ? {
+            //           NT: NT.type_single,
+            //           type: TYPE_UNKNOWN,
+            //         }
+            //       : type_node;
 
-              params.variable_types.set(node.type_check_id, node.type);
+            //   params.variable_types.set(node.type_check_id, node.type);
 
-              return {
-                success: res.success,
-                found_return: false,
-                type_constraints: params.variable_types,
-              };
-            }
+            //   return {
+            //     success: res.success,
+            //     found_return: false,
+            //     type_constraints: params.variable_types,
+            //   };
+            // }
             // if definition has no expression to type check.
             if (node.value === undefined)
               return {
@@ -252,7 +338,10 @@ export const typeChecker = (tree: SyntaxTree) => {
                 type_constraints: undefined,
               };
             // check expression type against definition type.
-            const expr_type = TypeHelper.getType(node.value, params);
+            const expr_type = TypeHelper.getType(node.value, {
+              ...params,
+              should_be_const: true,
+            });
 
             if (expr_type.NT === NT.type_union) {
               throw Errors.NotImplemented(NT.type_union);
@@ -287,11 +376,20 @@ export const typeChecker = (tree: SyntaxTree) => {
               if (type_length < array_length)
                 throw Errors.TypeError(node.location, node.type, expr_type);
               else {
+                if (node.value.NT === NT.operator && node.value.op === 'mul') {
+                  return {
+                    found_return: false,
+                    success: type_length === array_length,
+                    type_constraints: undefined,
+                  };
+                }
+
                 if (
                   node.value.NT !== NT.expression ||
                   node.value.member?.NT !== NT.array
-                )
+                ) {
                   throw Errors.TypeCheckError('');
+                }
 
                 node.value.member.value_type = node.type.type;
 
@@ -1108,6 +1206,9 @@ export const typeChecker = (tree: SyntaxTree) => {
       }
 
       case NT.reference: {
+        if (params.should_be_const && node.definition.DT !== DT.const)
+          throw Errors.TypeCheckError('Reference must also be a constant.');
+
         return {
           success: true,
           found_return: false,
@@ -1272,6 +1373,7 @@ export const typeChecker = (tree: SyntaxTree) => {
       NT: NT.type_union,
       types: [TYPE_VOID],
     },
+    should_be_const: false,
   };
 
   return recurse(tree.root, params);

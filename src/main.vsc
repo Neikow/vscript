@@ -1,7 +1,14 @@
-let x: u64[8] = [10, 20, 30, 40, 50, 60];
+// let size: u64 = 16 * 16;
 
-debug x[4];
+// let board: u64[size] = [0] * size;
 
-debug x[4] = 1;
+// debug board;
 
-debug x[4];
+// board[10] = 1;
+
+// debug board;
+
+while true do {
+  debug 10;
+  sleep 1;
+}

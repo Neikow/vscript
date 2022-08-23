@@ -1,8 +1,9 @@
-SYS_WRITE equ 1
-SYS_EXIT  equ 60
-STDIN     equ 0
-STDOUT    equ 1
-STDERR    equ 2
+SYS_WRITE       equ 1
+SYS_EXIT        equ 60
+SYS_NANOSLEEP   equ 35
+STDIN           equ 0
+STDOUT          equ 1
+STDERR          equ 2
 
 ; Prints an integer to STDOUT
 ; -> rcx : integer
@@ -110,17 +111,17 @@ exit:
   syscall
   ret
 
-; Allocates memory
-; rcx -> number of bytes to allocate (u64)
-memalloc:
-  mov		rax, 12   ; get current break
-	xor		rdi, rdi
-	syscall
-  mov   [brk_curr], rax
-  mov   [brk_init], rax
-  add   rax, rcx
-	mov		rdi, rax
-	mov		rax, 12
-	syscall
-  mov   [brk_curr], rax
+; Puts the program to sleep for n seconds;
+; rcx -> seconds
+sleep:
+  push  rdi
+  push  rsi
+  mov   qword [ts_sec], rcx
+  mov   qword [ts_nsec], 0
+  mov   rax, SYS_NANOSLEEP
+  mov   rdi, timespec
+  mov   rsi, 0
+  pop   rsi
+  pop   rdi
+  syscall
   ret

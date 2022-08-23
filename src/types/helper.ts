@@ -6,6 +6,7 @@ import {
   Node,
   NodeType as NT,
   NumberLiteralNode,
+  NumericalValueNode,
   OperatorNode,
   RawTypeNode,
   ReferenceNode,
@@ -26,7 +27,9 @@ import {
 } from './objects';
 import {
   BranchParameters,
+  INFINITY,
   Location,
+  NAN,
   TYPE_ANY,
   TYPE_NEVER,
   TYPE_UNDEFINED,
@@ -35,6 +38,7 @@ import {
   UNDEFINED,
 } from './types';
 import { Types } from '../std/types';
+import { notDeepEqual } from 'assert';
 
 let GLOBAL_NODE_ID = 0;
 
@@ -398,6 +402,12 @@ const TypeHelper = {
             }
 
             if (
+              typeof lTypeNode.type === 'string' ||
+              typeof rTypeNode.type === 'string'
+            )
+              throw Errors.NotImplemented();
+
+            if (
               rTypeNode.type == Types.u64.object &&
               lTypeNode.type == Types.u64.object
             ) {
@@ -423,7 +433,46 @@ const TypeHelper = {
                 NT: NT.type_single,
                 type: Types.string.object,
               };
-            } else throw Errors.NotImplemented();
+            } else if (
+              lTypeNode.type.kind === LanguageObjectKind.instance &&
+              lTypeNode.type.object === Types.array.object &&
+              rTypeNode.type === Types.u64.object
+            ) {
+              const base_length = lTypeNode.type.value_properties!.get(
+                'length'
+              ) as NumericalValueNode;
+              const multiplier = TypeHelper.getLiteralValue(node.right) as NumberLiteralNode;
+
+              if (base_length.value === NAN || base_length.value === INFINITY)
+                throw Errors.NotImplemented();
+
+              const array_type = lTypeNode.type.type_properties!.get(
+                'type'
+              )! as LanguageObject | LanguageObjectInstance;
+
+              return {
+                NT: NT.type_single,
+                type: Types.array.newInstance(
+                  {
+                    type: array_type,
+                  },
+                  {
+                    length: {
+                      NT: NT.value_num,
+                      is_builtin: false,
+                      location: Location.computed,
+                      value: base_length.value * parseInt(multiplier.value),
+                      value_type: Types.u64.object,
+                    },
+                  }
+                ),
+              };
+            } else
+              throw Errors.NotImplemented(
+                `${TypeHelper.formatType(
+                  lTypeNode
+                )} and ${TypeHelper.formatType(rTypeNode)}`
+              );
           }
 
           case 'add': {
@@ -1222,6 +1271,20 @@ const TypeHelper = {
           value: node.value.toString(),
           value_type: node.value_type,
         };
+      }
+
+      case NT.reference: {
+        if (node.definition.DT !== DT.const)
+          throw Errors.TypeCheckError(
+            `A varaible reference must be immutable to be used at ${chalk.greenBright(
+              `'${node.location.format()}'`
+            )}`
+          );
+
+        if (node.definition.value?.NT !== NT.literal_number)
+          throw Errors.NotImplemented();
+
+        return node.definition.value;
       }
 
       default: {
