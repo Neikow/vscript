@@ -41,8 +41,9 @@ array_stdout:
   cmp   rcx, 0          ; compares to null pointer
   jnz   .nonNull
 
-  mov   rcx, [lit_null]
-  call  string_stdout
+  mov   rcx, str_null
+  mov   rdx, str_null_len
+  call  sprint
 
   jmp   .afterNullCheck
     

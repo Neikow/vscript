@@ -8,7 +8,9 @@
 
 // debug board;
 
-while true do {
-  debug 10;
-  sleep 1;
+let mut x: u64 = 10;
+
+while x > 0 do {
+  debug x -= 2;
+  sleep 100;
 }

@@ -36,6 +36,7 @@ import {
   TYPE_VOID,
 } from '../types/types';
 import TypeHelper from '../types/helper';
+import { notEqual } from 'assert';
 
 /**
  * Type checks the current tree.
@@ -464,6 +465,12 @@ export const typeChecker = (tree: SyntaxTree) => {
           case 'add_assign': {
             if (!node.left || !node.right)
               throw Errors.ParserError('Missing operands');
+
+            if (node.left.NT !== NT.reference) throw Errors.NotImplemented();
+
+            if (node.left.definition.DT === DT.const)
+              throw Errors.TypeCheckError('Trying mutating a constant value');
+
             const l_type = TypeHelper.getType(node.left, params);
             const r_type = TypeHelper.getType(node.right, params);
 
@@ -497,6 +504,13 @@ export const typeChecker = (tree: SyntaxTree) => {
           case 'sub_assign': {
             if (!node.left || !node.right)
               throw Errors.ParserError('Missing operands');
+
+            if (node.left.NT !== NT.reference)
+              throw Errors.NotImplemented(node.left.NT);
+
+            if (node.left.definition.DT === DT.const)
+              throw Errors.TypeCheckError('Trying mutating a constant value');
+
             const l_type = TypeHelper.getType(node.left, params);
             const r_type = TypeHelper.getType(node.right, params);
 
@@ -576,6 +590,16 @@ export const typeChecker = (tree: SyntaxTree) => {
           case 'assign': {
             if (!node.left || !node.right)
               throw Errors.ParserError('Missing operands');
+
+            if (node.left.NT === NT.reference) {
+              if (node.left.definition.DT === DT.const)
+                throw Errors.TypeCheckError('Trying mutating a constant value');
+            } else if (
+              node.left.NT === NT.operator &&
+              node.left.op === 'access_computed'
+            ) {
+            } else throw Errors.NotImplemented(node.left.NT);
+
             const l_type_node = TypeHelper.getType(node.left, params);
             const r_type_node = TypeHelper.getType(node.right, params);
 
@@ -908,6 +932,11 @@ export const typeChecker = (tree: SyntaxTree) => {
             if (node.right) throw Errors.ParserError('Wrong argument');
             if (!node.left) throw Errors.ParserError('Missing argument');
 
+            if (node.left.NT !== NT.reference) throw Errors.NotImplemented();
+
+            if (node.left.definition.DT === DT.const)
+              throw Errors.TypeCheckError('Trying mutating a constant value');
+
             const type_node = TypeHelper.getType(node.left, params);
 
             if (type_node.NT === NT.type_union)
@@ -1014,6 +1043,8 @@ export const typeChecker = (tree: SyntaxTree) => {
             };
           }
 
+          case 'eq':
+          case 'neq':
           case 'and':
           case 'or':
           case 'xor': {
@@ -1033,6 +1064,38 @@ export const typeChecker = (tree: SyntaxTree) => {
 
             return {
               success: true,
+              found_return: false,
+              type_constraints: undefined,
+            };
+          }
+
+          case 'gt':
+          case 'lt':
+          case 'geq':
+          case 'leq': {
+            if (!node.left) throw Errors.ParserError('Missing left operand');
+            if (!node.right) throw Errors.ParserError('Missing right operand');
+
+            const r_type = TypeHelper.getType(node.right, params);
+            const l_type = TypeHelper.getType(node.left, params);
+
+            if (r_type.NT === NT.type_union || l_type.NT === NT.type_union) {
+              throw Errors.NotImplemented(NT.type_union);
+            }
+
+            if (r_type.NT === NT.type_tuple || l_type.NT === NT.type_tuple) {
+              throw Errors.NotImplemented(NT.type_union);
+            }
+
+            if (l_type.type === r_type.type)
+              return {
+                success: true,
+                found_return: false,
+                type_constraints: undefined,
+              };
+
+            return {
+              success: false,
               found_return: false,
               type_constraints: undefined,
             };

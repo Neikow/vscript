@@ -27,7 +27,16 @@ iprint:
   jnz   .divideLoop
   
   mov   rdx, rcx
-  xor   rbx, rbx 
+  xor   rbx, rbx
+
+  ; `ESC`[33;1m
+  mov   byte [output_buffer + 0], 0x1B ; 'ESC'
+  mov   byte [output_buffer + 1], 0x5B ; '['
+  mov   byte [output_buffer + 2], 0x39 ; '9'
+  mov   byte [output_buffer + 3], 0x33 ; '3'
+  mov   byte [output_buffer + 4], 0x6D ; 'm'
+  add   rbx, 5
+  add   rdx, 5
 
 .printLoop:
   dec   rcx
@@ -36,6 +45,13 @@ iprint:
   add   rbx, 1
   cmp   rcx, 0
   jnz   .printLoop
+
+  ; `ESC`[0m
+  mov   byte [output_buffer + rbx + 0], 0x1B ; 'ESC'
+  mov   byte [output_buffer + rbx + 1], 0x5B ; '['
+  mov   byte [output_buffer + rbx + 2], 0x30 ; '0'
+  mov   byte [output_buffer + rbx + 3], 0x6D ; 'm'
+  add   rdx, 4
 
   mov   rcx, output_buffer
   call  sprint
@@ -65,15 +81,16 @@ sprint:
 ; -> rcx : 0 or 1
 bprint:
   cmp   rcx, 0
-  jnz   .printTrue
-.printFalse:
-  mov   rcx, lit_false
-  call  string_stdout
-
-  jmp   .endPrint
+  je    .printFalse
 .printTrue:
-  mov   rcx, lit_true
-  call  string_stdout
+  mov   rcx, str_true
+  mov   rdx, [str_true_len]
+  call  sprint
+  jmp   .endPrint
+.printFalse:
+  mov   rcx, str_false
+  mov   rdx, [str_false_len]
+  call  sprint
 
 .endPrint:
   ret
@@ -111,18 +128,32 @@ exit:
   syscall
   ret
 
-; Puts the program to sleep for n seconds;
-; rcx -> seconds      (u64)
+; Puts the program to sleep for n ms;
+; rcx -> ms to sleep      (u64)
 sleep:
+  push  rbx
   push  rdi
   push  rsi
-  mov   rcx, [rcx + 2 * 8]
-  mov   qword [ts_sec], rcx
-  mov   qword [ts_nsec], 0
+
+  mov   rax, [rcx + 2 * 8]
+  xor   rdx, rdx
+  mov   rbx, 1000    ; ms in 1 s
+  div   rbx
+
+  mov   qword [ts_sec], rax
+
+  mov   rax, rdx
+  mov   rbx, 1000000 ; ns in 1 ms
+  mul   rbx
+
+  mov   qword [ts_nsec], rax
+
   mov   rax, SYS_NANOSLEEP
   mov   rdi, timespec
   mov   rsi, 0
   syscall
+
   pop   rsi
   pop   rdi
+  pop   rbx
   ret

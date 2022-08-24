@@ -42,9 +42,8 @@ export const collapse = (syntaxTree: ContextNode): ContextNode => {
       }
       case NT.expression: {
         if (!node.member) return undefined;
-        if (node.member.NT === NT.expression) return recurse(node.member);
-        node.member = recurse(node.member) as any;
-        return node;
+        // if (node.member.NT === NT.expression) return recurse(node.member);
+        return recurse(node.member) as any;
       }
       case NT.operator: {
         if (node.left) node.left = recurse(node.left);

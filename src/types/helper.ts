@@ -100,6 +100,22 @@ const TypeHelper = {
               throw Errors.NotImplemented('add_assign different types');
             }
           }
+          case 'sub_assign': {
+            if (!node.left) throw Errors.ParserError('Missing left operand.');
+            if (!node.right) throw Errors.ParserError('Missing right operand.');
+            const lType = TypeHelper.getType(node.left, params);
+            const rType = TypeHelper.getType(node.right, params);
+            if (
+              lType.NT === NT.type_single &&
+              lType.type == Types.u64.object &&
+              rType.NT === NT.type_single &&
+              rType.type == Types.u64.object
+            ) {
+              return lType;
+            } else {
+              throw Errors.NotImplemented('sub_assign non number');
+            }
+          }
           case 'geq':
           case 'leq':
           case 'gt':
@@ -123,7 +139,7 @@ const TypeHelper = {
             }
 
             if (lType.type == rType.type) {
-              return lType;
+              return { NT: NT.type_single, type: Types.bool.object };
             } else {
               throw Errors.NotImplemented('gt | lt different types');
             }
@@ -441,7 +457,9 @@ const TypeHelper = {
               const base_length = lTypeNode.type.value_properties!.get(
                 'length'
               ) as NumericalValueNode;
-              const multiplier = TypeHelper.getLiteralValue(node.right) as NumberLiteralNode;
+              const multiplier = TypeHelper.getLiteralValue(
+                node.right
+              ) as NumberLiteralNode;
 
               if (base_length.value === NAN || base_length.value === INFINITY)
                 throw Errors.NotImplemented();

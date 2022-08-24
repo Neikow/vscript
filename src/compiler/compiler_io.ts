@@ -42,7 +42,7 @@ export class CompilerIO {
           const res = this.expressionParser(node, parent_context, 'rcx', false);
           if (res.length > 1) throw Errors.NotImplemented('tuples');
 
-          const { before } = res[0];
+          const { before, after } = res[0];
 
           const member_type = (
             type_node.type.type_properties as Map<
@@ -81,6 +81,7 @@ export class CompilerIO {
             ) +
             this.instructions.call('array_stdout') +
             (line_feed ? this.instructions.call('linefeed') : '') +
+            after +
             '\n'
           );
         }
@@ -94,7 +95,7 @@ export class CompilerIO {
         const res = this.expressionParser(node, parent_context, 'rcx', true);
         if (res.length > 1) throw Errors.NotImplemented('tuples');
 
-        const { before } = res[0];
+        const { before, after } = res[0];
 
         // if (middle === '') throw Errors.CompilerError('Missing value to log');
 
@@ -102,8 +103,11 @@ export class CompilerIO {
           (comment ? `\t; statement_debug (str)\n` : '') +
           before +
           this.instructions.pop('rcx') +
+          (after ? this.instructions.push('rcx') : '') +
           this.instructions.call('string_stdout') +
           (line_feed ? this.instructions.call('linefeed') : '') +
+          (after ? this.instructions.pop('rcx') : '') +
+          after +
           '\n'
         );
       }
@@ -111,14 +115,17 @@ export class CompilerIO {
         const res = this.expressionParser(node, parent_context, 'rcx', true);
         if (res.length > 1) throw Errors.NotImplemented('tuples');
 
-        const { before } = res[0];
+        const { before, after } = res[0];
 
         return (
           (comment ? `\t; statement_debug (u64)\n` : '') +
           before +
           this.instructions.pop('rcx') +
+          (after ? this.instructions.push('rcx') : '') +
           this.instructions.call('u64_stdout') +
           (line_feed ? this.instructions.call('linefeed') : '') +
+          (after ? this.instructions.pop('rcx') : '') +
+          after +
           '\n'
         );
       }
@@ -126,14 +133,17 @@ export class CompilerIO {
         const res = this.expressionParser(node, parent_context, 'rcx', true);
         if (res.length > 1) throw Errors.NotImplemented('tuples');
 
-        const { before } = res[0];
+        const { before, after } = res[0];
 
         return (
           (comment ? `\t; statement_debug (bool)\n` : '') +
           before +
           this.instructions.pop('rcx') +
+          (after ? this.instructions.push('rcx') : '') +
           this.instructions.call('bool_stdout') +
           (line_feed ? this.instructions.call('linefeed') : '') +
+          (after ? this.instructions.pop('rcx') : '') +
+          after +
           '\n'
         );
       }

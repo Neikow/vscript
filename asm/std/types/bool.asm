@@ -2,17 +2,14 @@
 ; rcx -> 0 or 1 value         (qword)
 ; rax <- bool object address  (ptr)
 bool_make:
-  push  rdi
-  mov   rdi, [brk_curr]
-  push  rdi
-  and   rcx, 1
-  mov   qword [rdi + 0 * 8], 0    ; bool object static `this`
-  mov   qword [rdi + 1 * 8], 0    ; reference count
-  mov   qword [rdi + 2 * 8], rcx  ; value
-  add   rdi, 3 * 8
-  mov   [brk_curr], rdi
-  pop   rax
-  pop   rdi
+  cmp   rcx, 0
+  je   .makeFalse
+  .makeTrue:
+  mov   rax, obj_true
+  jmp   .endMake
+  .makeFalse:
+  mov   rax, obj_false
+  .endMake:
   ret
 
 ; prints u64 to STDOUT

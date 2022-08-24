@@ -7,10 +7,7 @@ export class StringManager {
   private I: Instructions;
   private assembly: Assembly;
 
-  constructor(
-    assembly: Assembly,
-    instructions: Instructions
-  ) {
+  constructor(assembly: Assembly, instructions: Instructions) {
     this.assembly = assembly;
     this.string_count = 0;
     this.strings = {};
@@ -44,6 +41,7 @@ export class StringManager {
       before: before,
       on_update: '',
       call: '',
+      after: '',
     };
   }
 }

@@ -46,11 +46,137 @@ u64_sub_u64:
 ; multiplies u64 (1) by u64 (2) returning a new object
 ; rcx -> u64 (1)
 ; rdx -> u64 (2)
+; rax <- new u64 address
 u64_mul_u64:
+  push  rbx
   mov   rax, [rcx + 2 * 8]    ; u64 (1) value
   mov   rbx, [rdx + 2 * 8]    ; u64 (2) value
   mul   rbx
   mov   rcx, rax
   call  u64_make
+  pop   rbx
   ret
   
+; decreases the value of u64 returning the same object
+; rcx -> object     (u64)
+; rax <- object     (u64)
+u64_dec:
+  push  rcx
+  
+
+  pop   rcx
+
+  dec   qword [rcx + 2 * 8]
+  mov   rax, rcx
+  ret
+
+; increases the value of u64 returning the same object
+; rcx -> object     (u64)
+; rax <- object     (u64)
+u64_inc:
+  inc   qword [rcx + 2 * 8]
+  mov   rax, rcx
+  ret
+
+;
+; rcx -> object (1) (u64)
+; rdx -> object (2) (u64)
+; rax <- result     (bool)
+u64_gt_u64:
+  mov   rcx, [rcx + 2 * 8]
+
+  cmp   rcx, [rdx + 2 * 8]
+  jg    .true
+.false:
+  mov   rcx, 0
+  jmp   .make
+.true:
+  mov   rcx, 1     
+.make:
+  call  bool_make
+  ret
+
+;
+; rcx -> object (1) (u64)
+; rdx -> object (2) (u64)
+; rax <- result     (bool)
+u64_lt_u64:
+  mov   rcx, [rcx + 2 * 8]
+  cmp   rcx, [rdx + 2 * 8]
+  jl    .true
+.false:
+  mov   rcx, 0
+  jmp   .make
+.true:
+  mov   rcx, 1     
+.make:
+  call  bool_make
+  ret
+
+;
+; rcx -> object (1) (u64)
+; rdx -> object (2) (u64)
+; rax <- result     (bool)
+u64_geq_u64:
+  mov   rcx, [rcx + 2 * 8]
+  cmp   rcx, [rdx + 2 * 8]
+  jge   .true
+.false:
+  mov   rcx, 0
+  jmp   .make
+.true:
+  mov   rcx, 1     
+.make:
+  call  bool_make
+  ret
+
+;
+; rcx -> object (1) (u64)
+; rdx -> object (2) (u64)
+; rax <- result     (bool)
+u64_leq_u64:
+  mov   rcx, [rcx + 2 * 8]
+  cmp   rcx, [rdx + 2 * 8]
+  jle   .true
+.false:
+  mov   rcx, 0
+  jmp   .make
+.true:
+  mov   rcx, 1     
+.make:
+  call  bool_make
+  ret
+
+;
+; rcx -> object (1) (u64)
+; rdx -> object (2) (u64)
+; rax <- result     (bool)
+u64_eq_u64:
+  mov   rcx, [rcx + 2 * 8]
+  cmp   rcx, [rdx + 2 * 8]
+  je    .true
+.false:
+  mov   rcx, 0
+  jmp   .make
+.true:
+  mov   rcx, 1     
+.make:
+  call  bool_make
+  ret
+
+;
+; rcx -> object (1) (u64)
+; rdx -> object (2) (u64)
+; rax <- result     (bool)
+u64_neq_u64:
+  mov   rcx, [rcx + 2 * 8]
+  cmp   rcx, [rdx + 2 * 8]
+  je    .false
+.true:
+  mov   rcx, 1     
+  jmp   .make
+.false:
+  mov   rcx, 0
+.make:
+  call  bool_make
+  ret

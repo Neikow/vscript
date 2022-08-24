@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import { writeFileSync } from 'fs';
 import { SyntaxTree } from '../ast';
 import {
@@ -29,6 +30,7 @@ import { ErrorManager } from './std/error_manager';
 
 export interface ParseResult {
   before: string;
+  after: string;
   call: string;
   on_update: string;
   pointer_offset?: number;
@@ -90,7 +92,9 @@ export function compiler(tree: SyntaxTree, path: string) {
       I.call('memalloc') +
       '\n',
     functions: '',
-    rodata: '',
+    rodata:
+      'obj_true:\n\tdq 0\n\tdq -1\n\tdq 1\n' +
+      'obj_false:\n\tdq 0\n\tdq -1\n\tdq 0\n',
     data:
       'brk_init: dq 0x0\n' +
       'brk_curr: dq 0x0\n' +
@@ -105,21 +109,16 @@ export function compiler(tree: SyntaxTree, path: string) {
 
   const errors = new ErrorManager();
 
-  function makeLiteral(literal: string) {
-    asm.rodata += `str_${literal}: db '${literal}'\n`;
-    asm.data += `lit_${literal}: dq '0x0'\n`;
-
-    asm.text +=
-      I.mov('rcx', `${literal.length}`, 'literal length') +
-      I.mov('rdx', `str_${literal}`, 'literal string') +
-      I.call('string_make') +
-      I.mov(`[lit_${literal}]`, 'rax') +
-      '\n';
+  function makeLiteral(literal: string, fn?: (s: string) => string) {
+    const val = fn ? fn(literal) : literal;
+    asm.rodata +=
+      `str_${literal}: db '${val}'\n` +
+      `str_${literal}_len: dq ${val.length}\n`;
   }
 
-  makeLiteral('null');
-  makeLiteral('true');
-  makeLiteral('false');
+  makeLiteral('null', chalk.blueBright);
+  makeLiteral('true', chalk.magentaBright);
+  makeLiteral('false', chalk.magentaBright);
 
   errors.new({
     code: 1,
@@ -201,6 +200,7 @@ export function compiler(tree: SyntaxTree, path: string) {
               (should_push ? I.push('rax') : ''),
             call: '',
             on_update: '',
+            after: '',
           },
         ];
       }
@@ -212,6 +212,7 @@ export function compiler(tree: SyntaxTree, path: string) {
               (should_push ? I.push('rax') : ''),
             call: '',
             on_update: '',
+            after: '',
           },
         ];
       }
@@ -228,6 +229,7 @@ export function compiler(tree: SyntaxTree, path: string) {
               (should_push ? I.push('rax') : ''),
             call: '',
             on_update: '',
+            after: '',
           },
         ];
       }
@@ -299,6 +301,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     : ''),
                 call: '',
                 on_update: I.mov(address, register),
+                after: '',
               },
             ];
           }
@@ -350,6 +353,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
+                  after: '',
                 },
               ];
             }
@@ -396,6 +400,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
+                  after: '',
                 },
               ];
             }
@@ -442,6 +447,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
+                  after: '',
                 },
               ];
             }
@@ -471,6 +477,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
+                  after: '',
                 },
               ];
             }
@@ -517,6 +524,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
+                  after: '',
                 },
               ];
             } else if (l_type.type === Types.u64.object) {
@@ -531,6 +539,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
+                  after: '',
                 },
               ];
             } else {
@@ -579,6 +588,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
+                  after: '',
                 },
               ];
             } else {
@@ -615,25 +625,97 @@ export function compiler(tree: SyntaxTree, path: string) {
             )
               throw Errors.NotImplemented();
 
-            throw Errors.NotImplemented('should_push');
+            if (l_type.type === Types.string.object) {
+              return [
+                {
+                  before:
+                    left[0].before +
+                    right[0].before +
+                    I.pop('rdx') +
+                    I.pop('rcx') +
+                    I.dec('qword [rcx + 1 * 8]') +
+                    I.call('string_concat') +
+                    I.inc('qword [rax + 1 * 8]') +
+                    (should_push ? I.push('rax') : '') +
+                    left[0].on_update,
+                  on_update: '',
+                  after: '',
+                  call: '',
+                },
+              ];
+            } else if (l_type.type === Types.u64.object) {
+              return [
+                {
+                  before:
+                    left[0].before +
+                    right[0].before +
+                    I.pop('rdx') +
+                    I.pop('rcx') +
+                    I.dec('qword [rcx + 1 * 8]') +
+                    I.call('u64_add_u64') +
+                    I.inc('qword [rax + 1 * 8]') +
+                    (should_push ? I.push('rax') : '') +
+                    left[0].on_update,
+                  after: '',
+                  call: '',
+                  on_update: '',
+                },
+              ];
+            } else {
+              throw Errors.NotImplemented(TypeHelper.formatType(l_type));
+            }
+          }
+          case 'sub_assign': {
+            if (!node.left || !node.right) throw Errors.CompilerError();
+            const l_type = TypeHelper.getType(node.left, undefined);
+            const r_type = TypeHelper.getType(node.right, undefined);
+            const left = parseExpression(
+              node.left,
+              parent_context,
+              'rax',
+              true
+            );
+            if (left.length > 1) throw Errors.NotImplemented();
+            const right = parseExpression(
+              node.right,
+              parent_context,
+              'rbx',
+              true
+            );
+            if (right.length > 1) throw Errors.NotImplemented();
 
-            // if (l_type.type === Types.string.object) {
-            //   return [
-            //     {
-            //       before:
-            //         left[0].before +
-            //         right[0].before +
-            //         I.pop('rdx') +
-            //         I.pop('rcx') +
-            //         I.call('string_concat') +
-            //         I.inc('qword [rax + 1 * 8]') +
-            //         left[0].on_update,
-            //       on_update: '',
-            //     },
-            //   ];
-            // } else {
-            //   throw Errors.NotImplemented(TypeHelper.formatType(l_type));
-            // }
+            if (l_type.NT !== NT.type_single || r_type.NT !== NT.type_single)
+              throw Errors.CompilerError();
+            if (typeof l_type.type === 'string') throw Errors.NotImplemented();
+            if (l_type.type !== r_type.type) throw Errors.CompilerError();
+
+            if (
+              l_type.type.kind === LanguageObjectKind.instance ||
+              r_type.type.kind === LanguageObjectKind.instance
+            )
+              throw Errors.NotImplemented();
+
+            if (l_type.type === Types.u64.object) {
+              return [
+                {
+                  before:
+                    left[0].before +
+                    right[0].before +
+                    I.pop('rdx') +
+                    I.pop('rcx') +
+                    I.dec('qword [rcx + 1 * 8]') +
+                    I.call('u64_sub_u64') +
+                    I.inc('qword [rax + 1 * 8]') +
+                    (should_push ? I.push('rax') : '') +
+                    left[0].on_update,
+                  after: '',
+                  call: '',
+                  on_update: '',
+                },
+              ];
+            } else {
+              throw Errors.NotImplemented(TypeHelper.formatType(l_type));
+            }
           }
           case 'mul': {
             if (!node.left || !node.right) throw Errors.CompilerError();
@@ -673,6 +755,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
+                  after: '',
                 },
               ];
             }
@@ -694,6 +777,7 @@ export function compiler(tree: SyntaxTree, path: string) {
 
                   call: '',
                   on_update: '',
+                  after: '',
                 },
               ];
             }
@@ -718,6 +802,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
+                  after: '',
                 },
               ];
             } else {
@@ -768,6 +853,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                       (should_push ? I.push('rax') : ''),
                     call: '',
                     on_update: '',
+                    after: '',
                   },
                 ];
             } else if (
@@ -785,6 +871,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                       (should_push ? I.push('rax') : ''),
                     call: '',
                     on_update: '',
+                    after: '',
                   },
                 ];
               } else if (stack[0] === 'push') {
@@ -793,6 +880,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     before: res[0].before,
                     call: 'array_push',
                     on_update: '',
+                    after: '',
                   },
                 ];
               } else if (stack[0] === 'pop') {
@@ -801,6 +889,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     before: res[0].before,
                     call: 'array_pop',
                     on_update: '',
+                    after: '',
                   },
                 ];
               }
@@ -843,6 +932,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: '',
+                  after: '',
                 },
               ];
             }
@@ -891,6 +981,7 @@ export function compiler(tree: SyntaxTree, path: string) {
                     (should_push ? I.push('rax') : ''),
                   call: '',
                   on_update: I.call('array_update'),
+                  after: '',
                 },
               ];
             }
@@ -904,7 +995,7 @@ export function compiler(tree: SyntaxTree, path: string) {
               node.left,
               parent_context,
               register,
-              false
+              true
             );
             if (left.length > 1) throw Errors.NotImplemented();
 
@@ -916,20 +1007,127 @@ export function compiler(tree: SyntaxTree, path: string) {
             );
             if (right.length > 1) throw Errors.NotImplemented();
 
-            return [
-              {
-                before:
-                  left[0].before +
-                  right[0].before +
-                  I.pop('r8') +
-                  left[0].on_update +
-                  (should_push ? I.push('rax') : ''),
-                call: '',
-                on_update: '',
-              },
-            ];
+            if (node.left.NT === NT.reference) {
+              return [
+                {
+                  before:
+                    left[0].before +
+                    right[0].before +
+                    I.pop('rcx') +
+                    I.pop('rdx') +
+                    I.dec('qword [rdx + 1 * 8]') +
+                    I.inc('qword [rcx + 1 * 8]') +
+                    (should_push ? I.push('rcx') : '') +
+                    left[0].on_update,
+                  call: '',
+                  on_update: '',
+                  after: '',
+                },
+              ];
+            } else if (
+              node.left.NT === NT.operator &&
+              node.left.op === 'access_computed'
+            ) {
+              return [
+                {
+                  before:
+                    left[0].before +
+                    right[0].before +
+                    I.pop('r8') +
+                    left[0].on_update +
+                    (should_push ? I.push('rax') : ''),
+                  call: '',
+                  on_update: '',
+                  after: '',
+                },
+              ];
+            } else throw Errors.NotImplemented(node.left.NT);
           }
+          case 'decr': {
+            if (!node.left) throw Errors.CompilerError();
+            if (node.left.NT !== NT.reference)
+              throw Errors.NotImplemented('non reference decr');
 
+            const val = parseExpression(
+              node.left,
+              parent_context,
+              register,
+              should_push
+            );
+            if (val.length > 1) throw Errors.CompilerError();
+
+            let type = TypeHelper.getType(node.left, undefined);
+
+            if (type.NT !== NT.type_single)
+              throw Errors.NotImplemented(type.NT);
+
+            if (typeof type.type === 'string') throw Errors.NotImplemented();
+
+            if (type.type === Types.u64.object) {
+              return [
+                {
+                  before: val[0].before,
+                  after: I.call('u64_dec'),
+                  call: '',
+                  on_update: '',
+                },
+              ];
+            } else throw Errors.NotImplemented(TypeHelper.formatType(type));
+          }
+          case 'eq':
+          case 'neq':
+          case 'leq':
+          case 'geq':
+          case 'lt':
+          case 'gt': {
+            if (!node.left || !node.right) throw Errors.CompilerError();
+            const l_type = TypeHelper.getType(node.left, undefined);
+            const r_type = TypeHelper.getType(node.right, undefined);
+            const left = parseExpression(
+              node.left,
+              parent_context,
+              'rax',
+              true
+            );
+            if (left.length > 1) throw Errors.NotImplemented();
+            const right = parseExpression(
+              node.right,
+              parent_context,
+              'rbx',
+              true
+            );
+            if (right.length > 1) throw Errors.NotImplemented();
+
+            if (l_type.NT !== NT.type_single || r_type.NT !== NT.type_single)
+              throw Errors.CompilerError();
+            if (typeof l_type.type === 'string') throw Errors.NotImplemented();
+            if (l_type.type !== r_type.type) throw Errors.CompilerError();
+
+            if (
+              l_type.type.kind === LanguageObjectKind.instance ||
+              r_type.type.kind === LanguageObjectKind.instance
+            )
+              throw Errors.NotImplemented();
+
+            if (l_type.type === Types.u64.object) {
+              return [
+                {
+                  before:
+                    left[0].before +
+                    right[0].before +
+                    I.pop('rdx') +
+                    I.pop('rcx') +
+                    I.call(`u64_${node.op}_u64`) +
+                    (should_push ? I.push('rax') : ''),
+                  call: '',
+                  on_update: '',
+                  after: '',
+                },
+              ];
+            } else {
+              throw Errors.NotImplemented(TypeHelper.formatType(l_type));
+            }
+          }
           default: {
             throw Errors.NotImplemented(node.op);
           }
@@ -989,6 +1187,7 @@ export function compiler(tree: SyntaxTree, path: string) {
             before: value,
             on_update: '',
             call: '',
+            after: '',
           },
         ];
       }
@@ -1189,19 +1388,24 @@ export function compiler(tree: SyntaxTree, path: string) {
 
     if (typeof type.type === 'string') throw Errors.NotImplemented();
 
-    let condition: string;
-
     if (type.type.kind === LanguageObjectKind.instance)
       throw Errors.NotImplemented();
 
+    let condition: string;
+
     if (type.type === Types.bool.object) {
-      condition = I.cmp('qword [rax + 2 * 8]', '0') + I.je(label_fail);
-    } else throw Errors.NotImplemented(TypeHelper.formatType(type));
+      condition =
+        I.cmp('qword [rax + 2 * 8]', '0') + expr[0].after + I.je(label_fail);
+    } else {
+      console.log(node, type);
+      throw Errors.NotImplemented(TypeHelper.formatType(type));
+    }
 
     return {
       before: expr[0].before + condition,
       call: '',
       on_update: '',
+      after: '',
     };
   }
 }
